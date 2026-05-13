@@ -21,13 +21,11 @@ static const int IRQ_PIN = 9;
 #define XTAL_MODE 0        // tcxoVoltage argument, setting to 0 brings it to xtal mode
 
 /* FIFO */
-#define FIFO_CHUNK_1 255       // bytes in first write (fills FIFO without overflow)
-#define FIFO_CHUNK_2 256       // bytes in second write (remainder of 511)
+#define FIFO_TX_CHUNK_1 255    // bytes in first write (fills FIFO without overflow)
+#define FIFO_TX_CHUNK_2 256    // bytes in second write (remainder of 511)
 #define FIFO_TX_LOW_THRESH 128 // fire TxFifoLow IRQ when FIFO drops below this level
 
 #define FIFO_RX_HIGH_THRESH 200 // fire RxFifo IRQ when RX FIFO fills above this
-#define FIFO_RX_CHUNK_1 200     // bytes to drain on first RxFifo threshold hit
-#define FIFO_RX_CHUNK_2 311     // remainder (511 - 200)
 
 /* Error stuff */
 #define LR2021_ERR_NONE 0
@@ -38,6 +36,7 @@ static const int IRQ_PIN = 9;
 #define LR2021_ERR_PKT_LEN_FAILED -2005
 #define LR2021_ERR_TX_TIMEOUT -2006
 #define LR2021_ERR_RX_TIMEOUT -2007
+#define LR2021_ERR_CRC_MISMATCH -2008
 
 struct LR2021Error
 {
@@ -62,6 +61,12 @@ struct LR2021Error
             return "radio.setCRC() failed";
         case LR2021_ERR_PKT_LEN_FAILED:
             return "radio.fixedPacketLengthMode() failed";
+        case LR2021_ERR_TX_TIMEOUT:
+            return "lr2021.transmit() tx timeout";
+        case LR2021_ERR_RX_TIMEOUT:
+            return "lr2021.receive() rx timeout";
+        case LR2021_ERR_CRC_MISMATCH:
+            return "lr2021.receive() crc mismatch";
         default:
             return "unknown error";
         }
@@ -82,9 +87,6 @@ private:
     static void setFlag();
 
     /* Tx stuff */
-    volatile bool txFifoRefillNeeded = false;
-    volatile bool txDone = false;
-
     uint8_t *fifoRefillPtr;
     uint16_t fifoRefillLen;
 
@@ -96,11 +98,9 @@ private:
 
     /* Rx stuff */
     uint16_t rxBytesRead; // running count of bytes drained mid-packet
-    bool rxFifoHighFired; // set when first RxFifo IRQ arrives
 
     void rxSet();
     void rxFIFODrainChunk(uint8_t *dst, uint16_t len);
-    // rxFIFOReadFinal is inlined into receive()
 
     uint32_t readIRQ();
 

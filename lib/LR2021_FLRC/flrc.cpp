@@ -70,22 +70,22 @@ LR2021Error LR2021Driver::init()
 
 LR2021Error LR2021Driver::setFIFO()
 {
-    // Configure TxFifoLow IRQ so we know when to refill the FIFO during 511-byte TX
     // ConfigFifoIrq: opcode 0x01 0x1A
-    //   byte 2: rxfifoirqenable = 0x00 (no Rx FIFO IRQs needed)
+    //   byte 2: rxfifoirqenable = 0x04 (FifoHigh — fires when RX FIFO > rxhighthreshold)
     //   byte 3: txfifoirqenable = 0x02 (enable TxFifoLow flag → triggers TxFifo IRQ)
-    //   bytes 4-5: rxhighthreshold = 0x0000 (unused)
-    //   bytes 6-7: txlowthreshold  = FIFO_LOW_THRESH (fire when TX FIFO level < 128)
+    //   bytes 4-5: rxhighthreshold = FIFO_RX_HIGH_THRESH (unused)
+    //   bytes 6-7: txlowthreshold  = FIFO_TX_LOW_THRESH (fire when TX FIFO level < 128)
     //   bytes 8-9: rxlowthreshold  = 0x0000 (unused)
     //   bytes 10-11: txhighthreshold = 0x0000 (unused)
     uint8_t configFifoCmd[] = {
-        0x01, 0x1A, // ConfigFifoIrq opcode
-        0x00,       // rxfifoirqenable: none
-        0x02,       // txfifoirqenable: FifoLow (bit 1)
-        0x00, 0x00, // rxhighthreshold (unused)
+        0x01, 0x1A,
+        0x04, // rxfifoirqenable: FifoHigh (bit 2)
+        0x02, // txfifoirqenable: FifoLow  (bit 1)
+        (uint8_t)((FIFO_RX_HIGH_THRESH >> 8) & 0xFF),
+        (uint8_t)(FIFO_RX_HIGH_THRESH & 0xFF), // rxhighthreshold = 200
         (uint8_t)((FIFO_TX_LOW_THRESH >> 8) & 0xFF),
-        (uint8_t)(FIFO_TX_LOW_THRESH & 0xFF), // txlowthreshold = 128
-        0x00, 0x00,                           // rxlowthreshold (unused)
+        (uint8_t)(FIFO_TX_LOW_THRESH & 0xFF), // txlowthreshold  = 128
+        0x00, 0x00,                           // rxlowthreshold  (unused)
         0x00, 0x00                            // txhighthreshold (unused)
     };
     mySPI.beginTransaction(spiSettings);
@@ -99,12 +99,12 @@ LR2021Error LR2021Driver::setFIFO()
 
 LR2021Error LR2021Driver::setIRQ()
 {
-    // SetDioIrqConfig: opcode 0x01 0x15
-    // Dio = 9, Irq bits: TxDone = bit 19 (0x00080000), TxFifo = bit 17 (0x00020000)
-    // Combined mask = 0x000A0000
-    // DS Table 5-17: TxDone = bit 19, TxFifoIrq = bit 17 (Datasheet section 5.7)
+    // SetDioIrqConfig: opcode 0x01 0x15  (DS Table 6-46 / §5.7)
+    // TxDone   = bit 19, TxFifoIrq = bit 17 (TX — unchanged)
+    // RxDone   = bit 18 (packet reception completed)
+    // RxFifo   = bit  0 Rx FIFO high threshold reached - triggers mid-packet
 
-    uint32_t irqMask = (1UL << 19) | (1UL << 17); // TxDone | TxFifoIrq
+    uint32_t irqMask = (1UL << 19) | (1UL << 18) | (1UL << 17) | (1UL << 0);
     uint8_t setDioIrqCmd[] = {
         0x01, 0x15,
         IRQ_PIN,
@@ -156,10 +156,10 @@ LR2021Error LR2021Driver::transmit(uint8_t *data)
 
 void LR2021Driver::txFIFOWriteChunkOne(uint8_t *data)
 {
-    static uint8_t cmd1[FIFO_CHUNK_1 + 2];
+    static uint8_t cmd1[FIFO_TX_CHUNK_1 + 2];
     cmd1[0] = 0x00;
     cmd1[1] = 0x02;
-    memcpy(&cmd1[2], data, FIFO_CHUNK_1);
+    memcpy(&cmd1[2], data, FIFO_TX_CHUNK_1);
     while (digitalRead(LR2021_BUSY))
     {
     }
@@ -169,8 +169,8 @@ void LR2021Driver::txFIFOWriteChunkOne(uint8_t *data)
     digitalWrite(LR2021_CS, HIGH);
     mySPI.endTransaction();
 
-    fifoRefillPtr = data + FIFO_CHUNK_1;
-    fifoRefillLen = FIFO_CHUNK_2;
+    fifoRefillPtr = data + FIFO_TX_CHUNK_1;
+    fifoRefillLen = FIFO_TX_CHUNK_2;
 }
 
 void LR2021Driver::txSet()
@@ -189,7 +189,7 @@ void LR2021Driver::txSet()
 void LR2021Driver::txFIFOWriteChunkTwo()
 {
     // fifoRefillPtr and fifoRefillLen set by txFIFOWriteChunkOne()
-    static uint8_t cmd2[FIFO_CHUNK_2 + 2];
+    static uint8_t cmd2[FIFO_TX_CHUNK_2 + 2];
     cmd2[0] = 0x00;
     cmd2[1] = 0x02; // WriteRadioTxFifo opcode
     memcpy(&cmd2[2], fifoRefillPtr, fifoRefillLen);
@@ -201,14 +201,6 @@ void LR2021Driver::txFIFOWriteChunkTwo()
     mySPI.transferBytes(cmd2, nullptr, sizeof(cmd2));
     digitalWrite(LR2021_CS, HIGH);
     mySPI.endTransaction();
-}
-
-void LR2021Driver::rxSet()
-{
-}
-
-void LR2021Driver::rxFIFODrainChunk(uint8_t *dst, uint16_t len)
-{
 }
 
 uint32_t LR2021Driver::readIRQ()
@@ -230,9 +222,101 @@ uint32_t LR2021Driver::readIRQ()
     return ((uint32_t)irqResp[2] << 24) | ((uint32_t)irqResp[3] << 16) | ((uint32_t)irqResp[4] << 8) | (uint32_t)irqResp[5];
 }
 
+void LR2021Driver::rxSet()
+{
+    // SetRx continuous mode: opcode 0x02 0x0C, timeout = 0xFFFFFF (DS §6.3.5, Table 6-11)
+    // 0xFFFFFF = stay in Rx until host commands otherwise — device signals RxDone each packet
+    uint8_t setRxCmd[] = {0x02, 0x0C, 0xFF, 0xFF, 0xFF};
+    while (digitalRead(LR2021_BUSY))
+        ;
+
+    mySPI.beginTransaction(spiSettings);
+    digitalWrite(LR2021_CS, LOW);
+    mySPI.transferBytes(setRxCmd, nullptr, sizeof(setRxCmd));
+    digitalWrite(LR2021_CS, HIGH);
+    mySPI.endTransaction();
+}
+
+void LR2021Driver::rxFIFODrainChunk(uint8_t *dst, uint16_t len)
+{
+    // ReadRadioRxFifo: opcode 0x00 0x01 — direct read, data starts at byte 2 (DS Table 6-1)
+    // Build a tx buffer of (2 + len) zeros; the chip streams data back on MISO starting at byte 2
+    static uint8_t txBuf[258]; // 2 opcode + up to 256 data
+    static uint8_t rxBuf[258];
+
+    txBuf[0] = 0x00;
+    txBuf[1] = 0x01;
+    memset(&txBuf[2], 0x00, len);
+
+    while (digitalRead(LR2021_BUSY))
+        ;
+
+    mySPI.beginTransaction(spiSettings);
+    digitalWrite(LR2021_CS, LOW);
+    mySPI.transferBytes(txBuf, rxBuf, len + 2);
+    digitalWrite(LR2021_CS, HIGH);
+    mySPI.endTransaction();
+
+    memcpy(dst, &rxBuf[2], len); // bytes 0-1 are Stat[15:0], data starts at byte 2
+}
+
 LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len)
 {
-    return LR2021Error();
+    // Reset RX state
+    rxBytesRead = 0;
+
+    // Clear any stale RX FIFO data before arming (§6.10.7, opcode 0x01 0x1E)
+    uint8_t clearRxCmd[] = {0x01, 0x1E};
+    while (digitalRead(LR2021_BUSY))
+        ;
+
+    mySPI.beginTransaction(spiSettings);
+    digitalWrite(LR2021_CS, LOW);
+    mySPI.transferBytes(clearRxCmd, nullptr, sizeof(clearRxCmd));
+    digitalWrite(LR2021_CS, HIGH);
+    mySPI.endTransaction();
+
+    rxSet(); // SetRx continuous (0xFFFFFF timeout)
+
+    const unsigned long timeout = 3000; // 3 s safety net
+    unsigned long start = millis();
+
+    while (true)
+    {
+        if (millis() - start > timeout)
+            return LR2021Error(LR2021_ERR_RX_TIMEOUT, 0);
+
+        if (!radioEvent)
+            continue;
+
+        radioEvent = false;
+
+        uint32_t irqStatus = readIRQ(); // GetAndClearIrqStatus — clears all pending IRQs
+
+        // RxFifo IRQ (bit 0): FIFO high threshold reached mid-packet
+        // DS Table 5-17: bit 0 = RxFifo, §5.3.1
+        if ((irqStatus & (1UL << 0)))
+        {
+            uint16_t toRead = min((uint16_t)FIFO_RX_HIGH_THRESH, (uint16_t(len - rxBytesRead)));
+            rxFIFODrainChunk(data + rxBytesRead, toRead);
+            rxBytesRead += toRead;
+        }
+
+        // RxDone (bit 18): full packet received — drain whatever remains in FIFO
+        // DS Table 5-17: bit 18 = RxDone
+        if (irqStatus & (1UL << 18))
+        {
+            if (irqStatus & (1UL << 22))
+                return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
+
+            uint16_t remaining = len - rxBytesRead;
+            if (remaining > 0)
+                rxFIFODrainChunk(data + rxBytesRead, remaining);
+
+            return LR2021Error(LR2021_ERR_NONE, 0);
+        }
+    }
+    return LR2021Error(LR2021_ERR_NONE, 0);
 }
 
 IRAM_ATTR void LR2021Driver::setFlag()
