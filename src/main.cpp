@@ -84,8 +84,8 @@ void setup()
     for (int i = 0; i < PAYLOAD_SIZE; i++)
         payload[i] = (uint8_t)(i & 0xFF);
 
-    Serial.println(F("[CAM] Starting benchmark in 10 seconds..."));
-    delay(10000);
+    Serial.println(F("[CAM] Starting benchmark in 2 seconds..."));
+    delay(2000);
 
     driver.transmitCallSign();
 
@@ -202,7 +202,7 @@ void loop()
         if (benchmarkStarted)
             lastRxMs = millis();
         digitalWrite(LED_RED, HIGH);
-        delay(100);
+        delay(10);
         digitalWrite(LED_RED, LOW);
     }
     else if (rxResult.driverCode == LR2021_ERR_PKT_LEN_FAILED)

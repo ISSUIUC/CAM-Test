@@ -106,6 +106,7 @@ private:
 
     /* Rx stuff */
     uint16_t rxBytesRead; // running count of bytes drained mid-packet
+    bool rxFifoHighFired;
 
     void rxSet();
     void rxFIFODrainChunk(uint8_t *dst, uint16_t len);

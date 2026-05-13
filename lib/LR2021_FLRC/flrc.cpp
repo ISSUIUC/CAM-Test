@@ -302,6 +302,7 @@ bool LR2021Driver::rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status)
 LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pktStatus)
 {
     // Reset RX state
+    rxFifoHighFired = false;
     rxBytesRead = 0;
 
     // Clear any stale RX FIFO data before arming (§6.10.7, opcode 0x01 0x1E)
@@ -334,24 +335,19 @@ LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStat
 
         // RxFifo IRQ (bit 0): FIFO high threshold reached mid-packet
         // DS Table 5-17: bit 0 = RxFifo, §5.3.1
-        if ((irqStatus & (1UL << 0)))
+        if ((irqStatus & (1UL << 0)) && !rxFifoHighFired) // ← ADD !rxFifoHighFired guard
         {
-            uint16_t toRead = min((uint16_t)FIFO_RX_HIGH_THRESH, (uint16_t(len - rxBytesRead)));
-            rxFIFODrainChunk(data + rxBytesRead, toRead);
-            rxBytesRead += toRead;
+            rxFifoHighFired = true;
+            rxFIFODrainChunk(data, FIFO_RX_HIGH_THRESH); // always drain exactly 200
+            rxBytesRead = FIFO_RX_HIGH_THRESH;
         }
 
         // RxDone (bit 18): full packet received — drain whatever remains in FIFO
         // DS Table 5-17: bit 18 = RxDone
         if (irqStatus & (1UL << 18))
         {
-            // if (pktStatus != nullptr)
-            //     rxGetFLRCPcktStatus(pktStatus);
-
-            // if (pktStatus != nullptr && pktStatus->packet_length_bytes != len)
-            // {
-            //     return LR2021Error(LR2021_ERR_PKT_LEN_FAILED, (int)pktStatus->packet_length_bytes);
-            // }
+            if (pktStatus != nullptr)
+                rxGetFLRCPcktStatus(pktStatus);
 
             if (irqStatus & (1UL << 22))
                 return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
