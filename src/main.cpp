@@ -55,12 +55,10 @@ void setup()
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_ORANGE, OUTPUT);
 
-#ifdef IS_CAM
     while (!Serial)
     {
     };
     delay(50);
-#endif
 
 #ifdef IS_CAM
     Serial.println(F("Mode: CAM (Transmitter - Benchmark)"));

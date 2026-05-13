@@ -15,7 +15,7 @@ static const char *CALL_SIGN = "KE2CNQ";
 static const int IRQ_PIN = 9;
 
 #define FREQ 434.0         // MHz
-#define BITRATE 2600       // Kbps
+#define BITRATE 260        // Kbps -> reference table 18-1 on datahseet
 #define POWER 22           // dBm Tx Power
 #define PREAMBLE_LENGTH 24 // bit
 #define XTAL_MODE 0        // tcxoVoltage argument, setting to 0 brings it to xtal mode
@@ -76,7 +76,6 @@ struct LR2021Error
 class LR2021Driver
 {
 private:
-    LR2021 radio;
     SPIClass mySPI;
     SPISettings spiSettings;
 
@@ -103,6 +102,8 @@ private:
     uint32_t readIRQ();
 
 public:
+    LR2021 radio;
+
     LR2021Driver();
     LR2021Error init();
     LR2021Error setFIFO();
