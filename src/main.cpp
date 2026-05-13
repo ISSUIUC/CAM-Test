@@ -1,216 +1,285 @@
-// #include <Arduino.h>
-// #include "pins.h"
-// #include <RadioLib.h>
+#include <Arduino.h>
+#include "pins.h"
+#include <RadioLib.h>
 
-// #include "USB.h"
-// #include "USBCDC.h"
+#include "USB.h"
+#include "USBCDC.h"
 
-// #include "flrc.h"
+#include "flrc.h"
 
-// USBCDC USBSerial;
-// #undef Serial
-// #define Serial USBSerial
+USBCDC USBSerial;
+#undef Serial
+#define Serial USBSerial
 
-// LR2021Driver driver;
+LR2021Driver driver;
 
-// #define BENCHMARK_PACKET_COUNT 200 // total packets to send per run
+#define BENCHMARK_PACKET_COUNT 200
 
-// #ifdef IS_CAM
-// // ─── ESP-IDF GDMA SPI additions ──────────────────────────────────────────────
-// // spi_device_transmit() on ESP32-S3 uses GDMA automatically for transfers
-// // larger than the CPU FIFO threshold (~32 bytes). The 257 and 258-byte FIFO
-// // writes will both use GDMA, freeing the CPU during the ~43 µs transfer window.
-// // We use a single spi_device_handle_t on the IDF-initialized HSPI (SPI2) bus.
-// // RadioLib's SPIClass wraps the same bus; mySPI.begin() is called AFTER
-// // spi_bus_initialize() so Arduino detects the bus is already up and skips
-// // double-init. All hot-path transfers go through spiHandle via spiSend/spiSendRecv.
-// #include "driver/spi_master.h"
-// #include "esp_heap_caps.h"
-// #include "driver/spi_common.h" // for SPICOMMON_BUSFLAG_MASTER
+#ifdef IS_CAM
+uint8_t payload[PAYLOAD_SIZE];
+int packetsSent = 0;
+int packetsOk = 0;
+int packetsFailed = 0;
+unsigned long benchStartMs = 0;
+#endif
 
-// // DMA-capable buffers — heap_caps_malloc guarantees 32-bit aligned DMA memory
-// // chunk1: opcode(2) + first 255 payload bytes = 257 bytes
-// // chunk2: opcode(2) + next 256 payload bytes  = 258 bytes
-// #define DMA_CMD_HDR 2
-// #define DMA_BUF1_SIZE (DMA_CMD_HDR + FIFO_CHUNK_1) // 257 bytes
-// #define DMA_BUF2_SIZE (DMA_CMD_HDR + FIFO_CHUNK_2) // 258 bytes
+#ifdef IS_EAGLE
+int packetsReceived = 0;
+int packetsExpected = BENCHMARK_PACKET_COUNT;
+long totalBytesRx = 0;
+unsigned long firstRxMs = 0;
+unsigned long lastRxMs = 0;
+bool benchmarkStarted = false;
+bool benchmarkDone = false;
+int rxErrors = 0;
 
-// static uint8_t *dmaBuf1 = nullptr; // pre-built WriteRadioTxFifo chunk 1
-// static uint8_t *dmaBuf2 = nullptr; // pre-built WriteRadioTxFifo chunk 2
-// // Single IDF device handle for ALL SPI transfers — DMA and short control commands.
-// // Replaces spiDma; mySPI is kept only for RadioLib's internal init calls.
-// static spi_device_handle_t spiHandle = nullptr;
-// static bool dmaReady = false;
-// // ─────────────────────────────────────────────────────────────────────────────
+struct PktLog
+{
+    int seqNum;
+    float rssi;
+    float snr;
+    unsigned long rxMs;
+};
+PktLog pktLog[BENCHMARK_PACKET_COUNT];
+#endif
 
-// // ─── 511-byte FIFO streaming additions ───────────────────────────────────────
-// // The LR2021 TX FIFO is 256 bytes deep. For 511-byte packets we must:
-// //   1. Write first 255 bytes before SetTx
-// //   2. When TxFifoLow IRQ fires (FIFO dropping below threshold), write remaining 256 bytes
-// // Both chunks use WriteRadioTxFifo opcode 0x00 0x02 (DS Table 6-2)
-// // ConfigFifoIrq opcode: 0x01 0x1A  (DS Table 6-50)
-// // TxFifo Low flag bit: 0x02        (DS §6.10.1)
+void setup()
+{
+    setCpuFrequencyMhz(240);
 
-// #define FIFO_CHUNK_1 255    // bytes in first write (fills FIFO without overflow)
-// #define FIFO_CHUNK_2 256    // bytes in second write (remainder of 511)
-// #define FIFO_LOW_THRESH 128 // fire TxFifoLow IRQ when FIFO drops below this level
+    USB.begin();
+    Serial.begin(115200);
 
-// // State shared between loop() and the TxFifoLow ISR
-// volatile bool fifoRefillNeeded = false; // set by TxFifoLow ISR
-// volatile bool txDone = false;           // set by TxDone ISR (already existed)
+    pinMode(LED_RED, OUTPUT);
+    pinMode(LED_BLUE, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_ORANGE, OUTPUT);
 
-// // Pointer to the second chunk in the payload buffer — set before SetTx
-// static uint8_t *fifoRefillPtr = nullptr;
-// static uint16_t fifoRefillLen = 0;
+#ifdef IS_CAM
+    while (!Serial)
+    {
+    };
+    delay(50);
+#endif
 
-// // Payload buffer — single buffer is fine since we never overlap packets
-// uint8_t payload[PAYLOAD_SIZE];
+#ifdef IS_CAM
+    Serial.println(F("Mode: CAM (Transmitter - Benchmark)"));
+#elifdef IS_EAGLE
+    Serial.println(F("Mode: EAGLE (Receiver - Benchmark)"));
+#endif
 
-// int packetsSent = 0;
-// int packetsOk = 0;
-// int packetsFailed = 0;
-// unsigned long benchStartMs = 0;
+    LR2021Error result = driver.init();
+    if (!result.ok())
+    {
+        Serial.print(F("[LR2021] Init failed at stage: "));
+        Serial.println(result.stageStr());
+        Serial.print(F("  RadioLib code: "));
+        Serial.println(result.radioLibCode);
+        while (true)
+        {
+            delay(10);
+        }
+    }
+    Serial.println(F("[LR2021] Init OK"));
 
-// volatile bool radioEvent = false;
+#ifdef IS_CAM
+    for (int i = 0; i < PAYLOAD_SIZE; i++)
+        payload[i] = (uint8_t)(i & 0xFF);
 
-// IRAM_ATTR void setRadioEventFlag(void)
-// {
-//     radioEvent = true;
-// }
+    Serial.println(F("[CAM] Starting benchmark in 10 seconds..."));
+    delay(10000);
 
-// #endif
+    driver.transmitCallSign();
 
-// // Called once after IDF bus init and RadioLib init complete.
-// // Registers ONE spi_device_handle_t on SPI2_HOST for all hot-path transfers.
-// // RadioLib continues using mySPI for its own calls; we never call mySPI
-// // in loop() — all hot-path SPI goes through spiHandle via spiSend/spiSendRecv.
-// static bool initSpiDma()
-// {
-//     dmaBuf1 = (uint8_t *)heap_caps_malloc(DMA_BUF1_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-//     dmaBuf2 = (uint8_t *)heap_caps_malloc(DMA_BUF2_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-//     if (!dmaBuf1 || !dmaBuf2)
-//     {
-//         Serial.println(F("[DMA] alloc failed"));
-//         return false;
-//     }
+    Serial.print(F("[CAM] Sending "));
+    Serial.print(BENCHMARK_PACKET_COUNT);
+    Serial.print(F(" x "));
+    Serial.print(PAYLOAD_SIZE);
+    Serial.println(F(" bytes ..."));
 
-//     // Pre-build command headers — these never change
-//     dmaBuf1[0] = 0x00; // WriteRadioTxFifo opcode byte 0
-//     dmaBuf1[1] = 0x02; // WriteRadioTxFifo opcode byte 1
-//     dmaBuf2[0] = 0x00;
-//     dmaBuf2[1] = 0x02;
+    payload[0] = 0;
+    payload[1] = 0;
 
-//     spi_device_interface_config_t cfg = {};
-//     cfg.mode = 0;                  // SPI_MODE0
-//     cfg.clock_speed_hz = 48000000; // 48 MHz — matches spiSettings
-//     cfg.spics_io_num = LR2021_CS;  // CS managed by IDF driver
-//     cfg.queue_size = 1;
-//     // No command/address phases — we embed opcode in tx_buffer
-//     cfg.command_bits = 0;
-//     cfg.address_bits = 0;
+    LR2021Error txResult = driver.transmit(payload);
+    if (!txResult.ok())
+    {
+        Serial.print(F("[CAM] First TX failed: "));
+        Serial.println(txResult.stageStr());
+    }
+    else
+    {
+        packetsOk++;
+    }
+    packetsSent = 1;
+    benchStartMs = millis();
+#endif
 
-//     esp_err_t r = spi_bus_add_device(SPI2_HOST, &cfg, &spiHandle);
-//     if (r != ESP_OK)
-//     {
-//         Serial.print(F("[DMA] spi_bus_add_device failed: "));
-//         Serial.println(esp_err_to_name(r));
-//         return false;
-//     }
-//     Serial.println(F("[DMA] GDMA SPI ready"));
-//     return true;
-// }
+#ifdef IS_EAGLE
+    Serial.println(F("[EAGLE] Listening for packets..."));
+    digitalWrite(LED_BLUE, HIGH);
+#endif
+}
 
-// // Sends `len` bytes from `buf` via IDF spi_device_transmit.
-// // IDF uses GDMA automatically for transfers > ~32 bytes on ESP32-S3.
-// // BUSY must be polled by the caller before invoking this — IDF manages CS only.
-// static void IRAM_ATTR spiSend(const uint8_t *buf, size_t len)
-// {
-//     spi_transaction_t t = {};
-//     t.length = len * 8; // bits
-//     t.tx_buffer = buf;
-//     t.rx_buffer = nullptr;
-//     spi_device_transmit(spiHandle, &t); // blocks until transfer completes
-// }
+void loop()
+{
+#ifdef IS_CAM
+    if (packetsSent < BENCHMARK_PACKET_COUNT)
+    {
+        payload[0] = (packetsSent >> 8) & 0xFF;
+        payload[1] = packetsSent & 0xFF;
 
-// // Send+receive variant — used for GetAndClearIrqStatus where we need the
-// // 6-byte response. tx and rx must both be len bytes long.
-// static void IRAM_ATTR spiSendRecv(const uint8_t *tx, uint8_t *rx, size_t len)
-// {
-//     spi_transaction_t t = {};
-//     t.length = len * 8; // bits
-//     t.tx_buffer = tx;
-//     t.rx_buffer = rx;
-//     spi_device_transmit(spiHandle, &t);
-// }
+        LR2021Error txResult = driver.transmit(payload);
+        if (!txResult.ok())
+        {
+            packetsFailed++;
+            Serial.print(F("[CAM] TX failed: "));
+            Serial.println(txResult.stageStr());
+        }
+        else
+        {
+            packetsOk++;
+        }
+        packetsSent++;
+    }
+    else
+    {
+        unsigned long elapsed = millis() - benchStartMs;
+        long totalBytes = (long)packetsOk * PAYLOAD_SIZE;
+        float elapsedSec = elapsed / 1000.0f;
+        float throughput = (totalBytes * 8.0f) / elapsedSec / 1000.0f;
 
-// // DMA-backed WriteRadioTxFifo. Copies `len` bytes from `src` into the
-// // pre-allocated DMA buffer (after the 2-byte opcode header), then fires
-// // spi_device_transmit() which uses GDMA on ESP32-S3 for transfers > ~32 bytes.
-// // Falls back to spiSend() (still IDF, just non-DMA path) if dmaReady is false
-// // — dmaReady is only false if heap alloc failed, which is fatal anyway.
-// static inline void IRAM_ATTR dmaWriteTxFifo(uint8_t *dmaBuf, const uint8_t *src,
-//                                             size_t len, size_t totalBufSize)
-// {
-//     memcpy(dmaBuf + DMA_CMD_HDR, src, len); // update payload in DMA buffer
+        digitalWrite(LED_GREEN, LOW);
+        digitalWrite(LED_RED, LOW);
+        digitalWrite(LED_ORANGE, HIGH);
 
-//     // dmaReady check kept for safety; both paths now use spiHandle
-//     if (dmaReady)
-//     {
-//         spi_transaction_t t = {};
-//         t.length = totalBufSize * 8; // bits
-//         t.tx_buffer = dmaBuf;
-//         t.rx_buffer = nullptr;
-//         // spi_device_transmit manages CS; BUSY is polled by the caller before this
-//         spi_device_transmit(spiHandle, &t); // blocks until GDMA transfer completes
-//     }
-//     else
-//     {
-//         // Fallback: still use IDF handle, just without pre-built DMA buffer
-//         // (spiHandle is always valid if we reach this point)
-//         spiSend(dmaBuf, totalBufSize);
-//     }
-// }
+        Serial.println(F("\n========= CAM BENCHMARK RESULTS ========="));
+        Serial.print(F("  Packets sent:    "));
+        Serial.println(packetsSent);
+        Serial.print(F("  Packets OK:      "));
+        Serial.println(packetsOk);
+        Serial.print(F("  Packets failed:  "));
+        Serial.println(packetsFailed);
+        Serial.print(F("  Payload/packet:  "));
+        Serial.print(PAYLOAD_SIZE);
+        Serial.println(F(" bytes"));
+        Serial.print(F("  Total TX bytes:  "));
+        Serial.println(totalBytes);
+        Serial.print(F("  Elapsed time:    "));
+        Serial.print(elapsedSec, 3);
+        Serial.println(F(" s"));
+        Serial.print(F("  Throughput:      "));
+        Serial.print(throughput, 2);
+        Serial.println(F(" kbps"));
+        Serial.println(F("=========================================\n"));
 
-// void setup()
-// {
-//     setCpuFrequencyMhz(240);
+        driver.transmitCallSign();
 
-//     USB.begin();
-//     Serial.begin(115200);
+        while (true)
+        {
+            delay(100);
+        }
+    }
 
-//     pinMode(LED_RED, OUTPUT);
-//     pinMode(LED_BLUE, OUTPUT);
-//     pinMode(LED_GREEN, OUTPUT);
-//     pinMode(LED_ORANGE, OUTPUT);
+#elifdef IS_EAGLE
+    if (benchmarkDone)
+        return;
 
-// #ifdef IS_CAM
-//     while (!Serial)
-//     {
-//     };
-//     delay(50);
-// #endif
+    if (benchmarkStarted && !benchmarkDone)
+    {
+        if (millis() - lastRxMs > 500)
+        {
+            int totalAccountedFor = packetsReceived + rxErrors;
+            if (totalAccountedFor < packetsExpected)
+                rxErrors += packetsExpected - totalAccountedFor;
+        }
+    }
 
-// #ifdef IS_CAM
-//     Serial.println(F("Mode: CAM (Transmitter - Benchmark)"));
-// #elifdef IS_EAGLE
-//     Serial.println(F("Mode: EAGLE (Receiver - Benchmark)"));
-// #endif
+    static uint8_t buf[PAYLOAD_SIZE];
+    LR2021Error rxResult = driver.receive(buf, PAYLOAD_SIZE);
 
-//     LR2021Result result = driver.init();
-//     if (!result.ok())
-//     {
-//         Serial.print(F("[LR2021] Init failed at stage: "));
-//         Serial.println(result.stageStr());
-//         Serial.print(F("  RadioLib code: "));
-//         Serial.println(result.radioLibCode);
-//         while (true)
-//         {
-//             delay(10);
-//         }
-//     }
-//     Serial.println(F("[LR2021] Init OK"));
-// }
+    if (rxResult.driverCode == LR2021_ERR_CRC_MISMATCH)
+    {
+        rxErrors++;
+        if (benchmarkStarted)
+            lastRxMs = millis();
+        digitalWrite(LED_RED, HIGH);
+        delay(10);
+        digitalWrite(LED_RED, LOW);
+    }
+    else if (rxResult.ok())
+    {
+        unsigned long now = millis();
 
-// void loop()
-// {
-// }
+        if (!benchmarkStarted)
+        {
+            benchmarkStarted = true;
+            firstRxMs = now;
+            lastRxMs = now;
+            digitalWrite(LED_ORANGE, HIGH);
+        }
+
+        int seqNum = ((int)buf[0] << 8) | buf[1];
+
+        if (packetsReceived < BENCHMARK_PACKET_COUNT)
+        {
+            pktLog[packetsReceived].seqNum = seqNum;
+            pktLog[packetsReceived].rssi = driver.radio.getRSSI();
+            pktLog[packetsReceived].snr = driver.radio.getSNR();
+            pktLog[packetsReceived].rxMs = now - firstRxMs;
+        }
+
+        packetsReceived++;
+        totalBytesRx += PAYLOAD_SIZE;
+        lastRxMs = now;
+
+        digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
+    }
+
+    if (benchmarkStarted && (packetsReceived + rxErrors >= packetsExpected))
+    {
+        benchmarkDone = true;
+
+        unsigned long elapsed = lastRxMs - firstRxMs;
+        float elapsedSec = elapsed / 1000.0f;
+        float throughput = (totalBytesRx * 8.0f) / elapsedSec / 1000.0f;
+        float packetLoss = 100.0f * (packetsExpected - packetsReceived) / (float)packetsExpected;
+
+        digitalWrite(LED_GREEN, LOW);
+        digitalWrite(LED_BLUE, HIGH);
+
+        Serial.println(F("\n--- Per-packet log ---"));
+        Serial.println(F("  SEQ\tRX ms\tRSSI\tSNR"));
+        for (int i = 0; i < packetsReceived; i++)
+        {
+            Serial.print(F("  "));
+            Serial.print(pktLog[i].seqNum);
+            Serial.print(F("\t"));
+            Serial.print(pktLog[i].rxMs);
+            Serial.print(F("\t"));
+            Serial.print(pktLog[i].rssi, 1);
+            Serial.print(F("\t"));
+            Serial.println(pktLog[i].snr, 1);
+        }
+
+        Serial.println(F("\n========= EAGLE BENCHMARK RESULTS ========="));
+        Serial.print(F("  Packets expected: "));
+        Serial.println(packetsExpected);
+        Serial.print(F("  Packets received: "));
+        Serial.println(packetsReceived);
+        Serial.print(F("  RX errors:        "));
+        Serial.println(rxErrors);
+        Serial.print(F("  Packet loss:      "));
+        Serial.print(packetLoss, 1);
+        Serial.println(F(" %"));
+        Serial.print(F("  Total RX bytes:   "));
+        Serial.println(totalBytesRx);
+        Serial.print(F("  Elapsed time:     "));
+        Serial.print(elapsedSec, 3);
+        Serial.println(F(" s"));
+        Serial.print(F("  Throughput:       "));
+        Serial.print(throughput, 2);
+        Serial.println(F(" kbps"));
+        Serial.println(F("==========================================\n"));
+    }
+#endif
+}

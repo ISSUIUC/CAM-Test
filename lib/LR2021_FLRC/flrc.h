@@ -90,8 +90,6 @@ private:
     uint8_t *fifoRefillPtr;
     uint16_t fifoRefillLen;
 
-    void transmitCallSign();
-
     void txFIFOWriteChunkOne(uint8_t *data);
     void txSet();
     void txFIFOWriteChunkTwo();
@@ -111,6 +109,8 @@ public:
     LR2021Error setIRQ();
     LR2021Error transmit(uint8_t *data);
     LR2021Error receive(uint8_t *data, uint16_t len);
+
+    void transmitCallSign();
 };
 
 #endif
