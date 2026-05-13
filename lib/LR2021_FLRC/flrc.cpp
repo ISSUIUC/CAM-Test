@@ -335,10 +335,10 @@ LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStat
 
         // RxFifo IRQ (bit 0): FIFO high threshold reached mid-packet
         // DS Table 5-17: bit 0 = RxFifo, §5.3.1
-        if ((irqStatus & (1UL << 0)) && !rxFifoHighFired) // ← ADD !rxFifoHighFired guard
+        if ((irqStatus & (1UL << 0)) && !rxFifoHighFired)
         {
             rxFifoHighFired = true;
-            rxFIFODrainChunk(data, FIFO_RX_HIGH_THRESH); // always drain exactly 200
+            rxFIFODrainChunk(data, FIFO_RX_HIGH_THRESH);
             rxBytesRead = FIFO_RX_HIGH_THRESH;
         }
 
