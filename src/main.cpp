@@ -210,9 +210,9 @@ void loop()
         rxErrors++;
         if (benchmarkStarted)
             lastRxMs = millis();
-        digitalWrite(LED_RED, HIGH);
-        delay(100);
-        digitalWrite(LED_RED, LOW);
+
+        Serial.print("Packet length failure :(:\t");
+        Serial.println(pktStatus.packet_length_bytes);
     }
     else if (rxResult.ok())
     {
