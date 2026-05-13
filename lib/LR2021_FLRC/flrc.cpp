@@ -260,6 +260,47 @@ void LR2021Driver::rxFIFODrainChunk(uint8_t *dst, uint16_t len)
     memcpy(dst, &rxBuf[2], len); // bytes 0-1 are Stat[15:0], data starts at byte 2
 }
 
+bool LR2021Driver::rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status)
+{
+    // GetFlrcPacketStatus: opcode 0x02 0x4B, 5 response bytes after Stat[15:0]
+    // Full frame: 2 opcode + 5 dummy tx = 7 bytes total
+    // Response layout (DS Table 18-9):
+    //   resp[0-1] = Stat[15:0]      (ignored)
+    //   resp[2]   = pkt_len[15:8]
+    //   resp[3]   = pkt_len[7:0]
+    //   resp[4]   = rssi_avg[8:1]   (MSBs)
+    //   resp[5]   = rssi_sync[8:1]  (MSBs)
+    //   resp[6]   = sw_num[7:4] | rfu[3] | rssi_avg(0)[2] | rfu[1] | rssi_sync(0)[0]
+    uint8_t cmd[7] = {0x02, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t resp[7] = {0};
+
+    while (digitalRead(LR2021_BUSY))
+        ;
+    mySPI.beginTransaction(spiSettings);
+    digitalWrite(LR2021_CS, LOW);
+    mySPI.transferBytes(cmd, resp, sizeof(cmd));
+    digitalWrite(LR2021_CS, HIGH);
+    mySPI.endTransaction();
+
+    // Stat bytes are resp[0:1] — check for command error (bit 1 of Stat[7:0])
+    if (resp[1] & 0x02)
+        return false;
+
+    // Reconstruct 9-bit rssi_avg and rssi_sync, then convert to dBm
+    // actual dBm = -(raw / 2.0), integer part = -(raw >> 1), half-dBm flag = raw & 1
+    uint16_t rssiAvgRaw = ((uint16_t)resp[4] << 1) | ((resp[6] >> 2) & 0x01);
+    uint16_t rssiSyncRaw = ((uint16_t)resp[5] << 1) | (resp[6] & 0x01);
+
+    pkt_status->packet_length_bytes = (uint16_t)(((uint16_t)resp[2] << 8) | resp[3]);
+    pkt_status->rssi_avg_in_dbm = -(int16_t)(rssiAvgRaw >> 1); // integer dBm
+    pkt_status->rssi_sync_in_dbm = -(int16_t)(rssiSyncRaw >> 1);
+    pkt_status->rssi_avg_half_dbm = (resp[6] >> 2) & 0x01; // 1 = add -0.5 dBm
+    pkt_status->rssi_sync_half_dbm = (resp[6] >> 0) & 0x01;
+    pkt_status->syncword_index = resp[6] >> 4;
+
+    return true;
+}
+
 LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len)
 {
     // Reset RX state

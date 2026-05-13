@@ -73,6 +73,17 @@ struct LR2021Error
     }
 };
 
+// Based off table 18-9
+typedef struct
+{
+    uint16_t packet_length_bytes; // pkt_len[15:0]
+    int16_t rssi_avg_in_dbm;      // -rssi_avg / 2 dBm (integer part)
+    int16_t rssi_sync_in_dbm;     // -rssi_sync / 2 dBm (integer part)
+    uint8_t rssi_avg_half_dbm;    // rssi_avg(0) — bit 2 of byte 6, adds 0.5 dBm
+    uint8_t rssi_sync_half_dbm;   // rssi_sync(0) — bit 0 of byte 6, adds 0.5 dBm
+    uint8_t syncword_index;       // sw_num[3:0] — bits [7:4] of byte 6
+} LR2021FlrcPktStatus;
+
 class LR2021Driver
 {
 private:
@@ -110,6 +121,8 @@ public:
     LR2021Error setIRQ();
     LR2021Error transmit(uint8_t *data);
     LR2021Error receive(uint8_t *data, uint16_t len);
+
+    bool rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status);
 
     void transmitCallSign();
 };

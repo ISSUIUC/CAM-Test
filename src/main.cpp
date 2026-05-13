@@ -37,7 +37,7 @@ struct PktLog
 {
     int seqNum;
     float rssi;
-    float snr;
+    int length;
     unsigned long rxMs;
 };
 PktLog pktLog[BENCHMARK_PACKET_COUNT];
@@ -221,8 +221,19 @@ void loop()
         if (packetsReceived < BENCHMARK_PACKET_COUNT)
         {
             pktLog[packetsReceived].seqNum = seqNum;
-            pktLog[packetsReceived].rssi = driver.radio.getRSSI();
-            pktLog[packetsReceived].snr = driver.radio.getSNR();
+
+            LR2021FlrcPktStatus pktStatus;
+            if (driver.rxGetFLRCPcktStatus(&pktStatus))
+            {
+                float rssi = pktStatus.rssi_avg_in_dbm - (pktStatus.rssi_avg_half_dbm ? 0.5f : 0.0f);
+                pktLog[packetsReceived].length = pktStatus.packet_length_bytes;
+                pktLog[packetsReceived].rssi = rssi;
+            }
+            else
+            {
+                pktLog[packetsReceived].rssi = 6767;
+                pktLog[packetsReceived].length = 0;
+            }
             pktLog[packetsReceived].rxMs = now - firstRxMs;
         }
 
@@ -246,7 +257,7 @@ void loop()
         digitalWrite(LED_BLUE, HIGH);
 
         Serial.println(F("\n--- Per-packet log ---"));
-        Serial.println(F("  SEQ\tRX ms\tRSSI\tSNR"));
+        Serial.println(F("  SEQ\tRX ms\tRSSI\tLength"));
         for (int i = 0; i < packetsReceived; i++)
         {
             Serial.print(F("  "));
@@ -256,7 +267,7 @@ void loop()
             Serial.print(F("\t"));
             Serial.print(pktLog[i].rssi, 1);
             Serial.print(F("\t"));
-            Serial.println(pktLog[i].snr, 1);
+            Serial.println(pktLog[i].length);
         }
 
         Serial.println(F("\n========= EAGLE BENCHMARK RESULTS ========="));
