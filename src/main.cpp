@@ -202,7 +202,16 @@ void loop()
         if (benchmarkStarted)
             lastRxMs = millis();
         digitalWrite(LED_RED, HIGH);
-        delay(10);
+        delay(100);
+        digitalWrite(LED_RED, LOW);
+    }
+    else if (rxResult.driverCode == LR2021_ERR_PKT_LEN_FAILED)
+    {
+        rxErrors++;
+        if (benchmarkStarted)
+            lastRxMs = millis();
+        digitalWrite(LED_RED, HIGH);
+        delay(100);
         digitalWrite(LED_RED, LOW);
     }
     else if (rxResult.ok())

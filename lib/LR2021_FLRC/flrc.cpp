@@ -299,7 +299,7 @@ bool LR2021Driver::rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status)
     return true;
 }
 
-LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pktStatus = nullptr)
+LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pktStatus)
 {
     // Reset RX state
     rxBytesRead = 0;
@@ -347,6 +347,11 @@ LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStat
         {
             if (pktStatus != nullptr)
                 rxGetFLRCPcktStatus(pktStatus);
+
+            if (pktStatus != nullptr && pktStatus->packet_length_bytes != len)
+            {
+                return LR2021Error(LR2021_ERR_PKT_LEN_FAILED, (int)pktStatus->packet_length_bytes);
+            }
 
             if (irqStatus & (1UL << 22))
                 return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
