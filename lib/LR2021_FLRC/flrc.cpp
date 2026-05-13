@@ -286,22 +286,20 @@ bool LR2021Driver::rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status)
     if (resp[1] & 0x02)
         return false;
 
-    // Reconstruct 9-bit rssi_avg and rssi_sync, then convert to dBm
-    // actual dBm = -(raw / 2.0), integer part = -(raw >> 1), half-dBm flag = raw & 1
     uint16_t rssiAvgRaw = ((uint16_t)resp[4] << 1) | ((resp[6] >> 2) & 0x01);
     uint16_t rssiSyncRaw = ((uint16_t)resp[5] << 1) | (resp[6] & 0x01);
 
     pkt_status->packet_length_bytes = (uint16_t)(((uint16_t)resp[2] << 8) | resp[3]);
-    pkt_status->rssi_avg_in_dbm = -(int16_t)(rssiAvgRaw >> 1); // integer dBm
-    pkt_status->rssi_sync_in_dbm = -(int16_t)(rssiSyncRaw >> 1);
-    pkt_status->rssi_avg_half_dbm = (resp[6] >> 2) & 0x01; // 1 = add -0.5 dBm
+    pkt_status->rssi_avg_in_dbm = -(int16_t)resp[4];
+    pkt_status->rssi_sync_in_dbm = -(int16_t)resp[5];
+    pkt_status->rssi_avg_half_dbm = (resp[6] >> 2) & 0x01;
     pkt_status->rssi_sync_half_dbm = (resp[6] >> 0) & 0x01;
     pkt_status->syncword_index = resp[6] >> 4;
 
     return true;
 }
 
-LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len)
+LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pktStatus = nullptr)
 {
     // Reset RX state
     rxBytesRead = 0;
@@ -347,6 +345,9 @@ LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len)
         // DS Table 5-17: bit 18 = RxDone
         if (irqStatus & (1UL << 18))
         {
+            if (pktStatus != nullptr)
+                rxGetFLRCPcktStatus(pktStatus);
+
             if (irqStatus & (1UL << 22))
                 return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
 

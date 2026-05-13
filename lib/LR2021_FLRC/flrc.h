@@ -120,7 +120,7 @@ public:
     LR2021Error setFIFO();
     LR2021Error setIRQ();
     LR2021Error transmit(uint8_t *data);
-    LR2021Error receive(uint8_t *data, uint16_t len);
+    LR2021Error receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pkt_status = nullptr);
 
     bool rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status);
 

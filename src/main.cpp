@@ -193,7 +193,8 @@ void loop()
     }
 
     static uint8_t buf[PAYLOAD_SIZE];
-    LR2021Error rxResult = driver.receive(buf, PAYLOAD_SIZE);
+    LR2021FlrcPktStatus pktStatus;
+    LR2021Error rxResult = driver.receive(buf, PAYLOAD_SIZE, &pktStatus);
 
     if (rxResult.driverCode == LR2021_ERR_CRC_MISMATCH)
     {
@@ -221,19 +222,8 @@ void loop()
         if (packetsReceived < BENCHMARK_PACKET_COUNT)
         {
             pktLog[packetsReceived].seqNum = seqNum;
-
-            LR2021FlrcPktStatus pktStatus;
-            if (driver.rxGetFLRCPcktStatus(&pktStatus))
-            {
-                float rssi = pktStatus.rssi_avg_in_dbm - (pktStatus.rssi_avg_half_dbm ? 0.5f : 0.0f);
-                pktLog[packetsReceived].length = pktStatus.packet_length_bytes;
-                pktLog[packetsReceived].rssi = rssi;
-            }
-            else
-            {
-                pktLog[packetsReceived].rssi = 6767;
-                pktLog[packetsReceived].length = 0;
-            }
+            pktLog[packetsReceived].length = pktStatus.packet_length_bytes;
+            pktLog[packetsReceived].rssi = pktStatus.rssi_avg_in_dbm - (pktStatus.rssi_avg_half_dbm ? 0.5f : 0.0f);
             pktLog[packetsReceived].rxMs = now - firstRxMs;
         }
 
