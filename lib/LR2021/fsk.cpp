@@ -107,8 +107,8 @@ LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len)
                 return LR2021Error{LR2021_ERR_CRC_MISMATCH, 0};
 
             // ReadRadioRxFifo opcode 0x00 0x01
-            static uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
-            static uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
+            uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
+            uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
             txBuf[0] = 0x00;
             txBuf[1] = 0x01;
             memset(&txBuf[2], 0x00, len);
