@@ -358,11 +358,11 @@ LR2021Error LR2021Driver::receive(uint8_t *data, uint16_t len, LR2021FlrcPktStat
         // DS Table 5-17: bit 18 = RxDone
         if (irqStatus & (1UL << 18))
         {
-            if (pktStatus != nullptr)
-                rxGetFLRCPcktStatus(pktStatus);
-
             if (irqStatus & (1UL << 22))
                 return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
+
+            if (pktStatus != nullptr)
+                rxGetFLRCPcktStatus(pktStatus);
 
             uint16_t remaining = len - rxBytesRead;
             if (remaining > 0)
