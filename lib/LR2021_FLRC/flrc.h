@@ -19,6 +19,7 @@ static const int IRQ_PIN = 9;
 #define POWER 22           // dBm Tx Power
 #define PREAMBLE_LENGTH 24 // bit
 #define XTAL_MODE 0        // tcxoVoltage argument, setting to 0 brings it to xtal mode
+#define CRC_LENGTH 3       // bits, 0, 1, 2, 3
 
 /* FIFO */
 #define FIFO_TX_CHUNK_1 255    // bytes in first write (fills FIFO without overflow)

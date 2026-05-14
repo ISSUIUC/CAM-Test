@@ -67,7 +67,7 @@ LR2021Error LR2021Driver::init()
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_SYNC_WORD_FAILED, state);
 
-    state = radio.setCRC(0);
+    state = radio.setCRC(CRC_LENGTH);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_CRC_CONFIG_FAILED, state);
 
