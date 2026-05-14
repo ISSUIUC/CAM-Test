@@ -123,6 +123,9 @@ private:
     volatile bool radioEvent = false;
     static void setFlag();
 
+    /* IRQ */
+    uint32_t readIRQ();
+
     /* SPI */
     void spiWrite(const uint8_t *cmd, size_t len);
     void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
@@ -133,8 +136,8 @@ public:
     LR2021Error init();
 
     LR2021FSKDriver();
-    LR2021Error transmit(uint8_t *data, size_t len);
-    LR2021Error receive(uint8_t *data, size_t len);
+    LR2021Error transmit(uint8_t *data, uint8_t len);
+    LR2021Error receive(uint8_t *data, uint8_t len);
 
     void transmitCallSign();
 };

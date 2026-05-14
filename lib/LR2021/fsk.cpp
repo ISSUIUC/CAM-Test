@@ -49,51 +49,72 @@ LR2021Error LR2021FSKDriver::init()
     return LR2021Error(LR2021_ERR_NONE, 0);
 }
 
-LR2021Error LR2021FSKDriver::transmit(uint8_t *data, size_t len)
+LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
 {
-    int state = radio.startTransmit(data, len);
-    if (state != RADIOLIB_ERR_NONE)
-        return LR2021Error(LR2021_ERR_TX_TIMEOUT, state);
+    // RadioTxFifo write opcode: 0x00 0x02
+    static uint8_t cmd[PAYLOAD_SIZE_FSK + 2];
+    cmd[0] = 0x00;
+    cmd[1] = 0x02;
+    memcpy(&cmd[2], data, len);
+    spiWrite(cmd, len + 2);
+
+    // SetTx with no timeout (continuous until TxDone IRQ)
+    uint8_t setTxCmd[] = {0x02, 0x0D, 0x00, 0x00, 0x00, 0x00};
+    spiWrite(setTxCmd, sizeof(setTxCmd));
 
     const unsigned long timeout = 3000;
     unsigned long start = millis();
-
     while (true)
     {
         if (millis() - start > timeout)
-            return LR2021Error(LR2021_ERR_TX_TIMEOUT, 0);
+            return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
         if (!radioEvent)
             continue;
         radioEvent = false;
-        radio.finishTransmit(); // powers down PA, resets state
-        return LR2021Error(LR2021_ERR_NONE, 0);
+
+        uint32_t irq = readIRQ(); // GetAndClearIrqStatus (same as FLRC)
+        if (irq & (1UL << 19))    // TxDone bit 19
+            return LR2021Error{LR2021_ERR_NONE, 0};
     }
 }
 
-LR2021Error LR2021FSKDriver::receive(uint8_t *data, size_t len)
+LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len)
 {
-    int state = radio.startReceive();
-    if (state != RADIOLIB_ERR_NONE)
-        return LR2021Error(LR2021_ERR_RX_TIMEOUT, state);
+    // Clear stale RX FIFO before arming  (opcode 0x01 0x1E)
+    uint8_t clearRxCmd[] = {0x01, 0x1E};
+    spiWrite(clearRxCmd, sizeof(clearRxCmd));
+
+    // SetRx continuous (0xFFFFFF timeout = stay until RxDone)
+    uint8_t setRxCmd[] = {0x02, 0x0C, 0xFF, 0xFF, 0xFF};
+    spiWrite(setRxCmd, sizeof(setRxCmd));
 
     const unsigned long timeout = 3000;
     unsigned long start = millis();
-
     while (true)
     {
         if (millis() - start > timeout)
-            return LR2021Error(LR2021_ERR_RX_TIMEOUT, 0);
+            return LR2021Error{LR2021_ERR_RX_TIMEOUT, 0};
         if (!radioEvent)
             continue;
         radioEvent = false;
 
-        state = radio.readData(data, len);
-        if (state == RADIOLIB_ERR_CRC_MISMATCH)
-            return LR2021Error(LR2021_ERR_CRC_MISMATCH, 0);
-        if (state != RADIOLIB_ERR_NONE)
-            return LR2021Error(LR2021_ERR_GENERIC, state);
+        uint32_t irq = readIRQ();
+        if (irq & (1UL << 18))
+        {                          // RxDone bit 18
+            if (irq & (1UL << 22)) // CrcError bit 22
+                return LR2021Error{LR2021_ERR_CRC_MISMATCH, 0};
 
-        return LR2021Error(LR2021_ERR_NONE, 0);
+            // ReadRadioRxFifo opcode 0x00 0x01
+            static uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
+            static uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
+            txBuf[0] = 0x00;
+            txBuf[1] = 0x01;
+            memset(&txBuf[2], 0x00, len);
+            spiTransfer(txBuf, rxBuf, len + 2);
+            memcpy(data, &rxBuf[2], len); // data starts at byte 2
+
+            return LR2021Error{LR2021_ERR_NONE, 0};
+        }
     }
 }
 
@@ -114,6 +135,17 @@ LR2021Error LR2021FSKDriver::setIRQ()
     spiWrite(setDioIrqCmd, sizeof(setDioIrqCmd));
 
     return LR2021Error(LR2021_ERR_NONE, 0);
+}
+
+/* ---- helpers ---*/
+
+uint32_t LR2021FSKDriver::readIRQ()
+{
+    uint8_t irqCmd[] = {0x01, 0x17, 0x00, 0x00, 0x00, 0x00};
+    uint8_t irqResp[6] = {0};
+    spiTransfer(irqCmd, irqResp, sizeof(irqCmd));
+    return (uint32_t)irqResp[2] << 24 | (uint32_t)irqResp[3] << 16 |
+           (uint32_t)irqResp[4] << 8 | (uint32_t)irqResp[5];
 }
 
 void LR2021FSKDriver::spiWrite(const uint8_t *cmd, size_t len)
