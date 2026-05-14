@@ -28,7 +28,7 @@ LR2021Error LR2021FLRCDriver::init()
 #ifdef IS_EAGLE
     int state = radio.beginFLRC(
         FREQ,
-        BITRATE,
+        BITRATE_FLRC,
         RADIOLIB_LR2021_FLRC_CR_1_0,
         POWER,
         PREAMBLE_LENGTH,
@@ -37,7 +37,7 @@ LR2021Error LR2021FLRCDriver::init()
 #elifdef IS_CAM
     int state = radio.beginFLRC(
         FREQ,
-        BITRATE,
+        BITRATE_FLRC,
         RADIOLIB_LR2021_FLRC_CR_2_3,
         POWER,
         PREAMBLE_LENGTH,
