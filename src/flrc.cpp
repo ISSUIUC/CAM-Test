@@ -5,7 +5,7 @@
 #include "USB.h"
 #include "USBCDC.h"
 
-#include "flrc.h"
+#include "radio.h"
 
 USBCDC USBSerial;
 #undef Serial
