@@ -11,7 +11,7 @@ USBCDC USBSerial;
 #undef Serial
 #define Serial USBSerial
 
-LR2021Driver driver;
+LR2021FLRCDriver driver;
 
 // ─────────────────────────────────────────────
 //  CAM state

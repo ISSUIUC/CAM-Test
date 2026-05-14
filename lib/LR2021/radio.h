@@ -85,13 +85,23 @@ typedef struct
     uint8_t syncword_index;       // sw_num[3:0] — bits [7:4] of byte 6
 } LR2021FlrcPktStatus;
 
-class LR2021Driver
+class LR2021FSKDriver
 {
 private:
     SPIClass mySPI;
     SPISettings spiSettings;
 
-    static LR2021Driver *_instance;
+public:
+    LR2021FSKDriver();
+};
+
+class LR2021FLRCDriver
+{
+private:
+    SPIClass mySPI;
+    SPISettings spiSettings;
+
+    static LR2021FLRCDriver *_instance;
 
     /* Flags */
     volatile bool radioEvent = false;
@@ -122,7 +132,7 @@ private:
 public:
     LR2021 radio;
 
-    LR2021Driver();
+    LR2021FLRCDriver();
     LR2021Error init();
     LR2021Error setFIFO();
     LR2021Error setIRQ();
