@@ -1,5 +1,7 @@
 #include "radio.h"
 
+LR2021FSKDriver *LR2021FSKDriver::_instance = nullptr;
+
 LR2021FSKDriver::LR2021FSKDriver()
     : mySPI(HSPI),
       spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
