@@ -24,6 +24,8 @@ LR2021Error LR2021Driver::init()
     radio.irqDioNum = IRQ_PIN;
 
     Serial.print(F("Initializing ... "));
+
+#ifdef IS_EAGLE
     int state = radio.beginFLRC(
         FREQ,
         BITRATE,
@@ -32,6 +34,16 @@ LR2021Error LR2021Driver::init()
         PREAMBLE_LENGTH,
         RADIOLIB_SHAPING_NONE,
         XTAL_MODE);
+#elifdef IS_CAM
+    int state = radio.beginFLRC(
+        FREQ,
+        BITRATE,
+        RADIOLIB_LR2021_FLRC_CR_2_3,
+        POWER,
+        PREAMBLE_LENGTH,
+        RADIOLIB_SHAPING_0_5,
+        XTAL_MODE);
+#endif
 
     if (state != RADIOLIB_ERR_NONE)
     {

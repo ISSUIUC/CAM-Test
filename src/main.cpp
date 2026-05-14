@@ -55,14 +55,13 @@ void setup()
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_ORANGE, OUTPUT);
 
+#ifdef IS_CAM
+    Serial.println(F("Mode: CAM (Transmitter - Benchmark)"));
+#elifdef IS_EAGLE
     while (!Serial)
     {
     };
     delay(50);
-
-#ifdef IS_CAM
-    Serial.println(F("Mode: CAM (Transmitter - Benchmark)"));
-#elifdef IS_EAGLE
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark)"));
 #endif
 
@@ -184,7 +183,7 @@ void loop()
 
     if (benchmarkStarted && !benchmarkDone)
     {
-        if (millis() - lastRxMs > 500)
+        if (micros() - lastRxMs > 500 * 1000)
         {
             int totalAccountedFor = packetsReceived + rxErrors;
             if (totalAccountedFor < packetsExpected)
@@ -200,7 +199,7 @@ void loop()
     {
         rxErrors++;
         if (benchmarkStarted)
-            lastRxMs = millis();
+            lastRxMs = micros();
         digitalWrite(LED_RED, HIGH);
         delay(10);
         digitalWrite(LED_RED, LOW);
@@ -209,14 +208,14 @@ void loop()
     {
         rxErrors++;
         if (benchmarkStarted)
-            lastRxMs = millis();
+            lastRxMs = micros();
 
         Serial.print("Packet length failure :(:\t");
         Serial.println(pktStatus.packet_length_bytes);
     }
     else if (rxResult.ok())
     {
-        unsigned long now = millis();
+        unsigned long now = micros();
 
         if (!benchmarkStarted)
         {
@@ -255,20 +254,6 @@ void loop()
         digitalWrite(LED_GREEN, LOW);
         digitalWrite(LED_BLUE, HIGH);
 
-        Serial.println(F("\n--- Per-packet log ---"));
-        Serial.println(F("  SEQ\tRX ms\tRSSI\tLength"));
-        for (int i = 0; i < packetsReceived; i++)
-        {
-            Serial.print(F("  "));
-            Serial.print(pktLog[i].seqNum);
-            Serial.print(F("\t"));
-            Serial.print(pktLog[i].rxMs);
-            Serial.print(F("\t"));
-            Serial.print(pktLog[i].rssi, 1);
-            Serial.print(F("\t"));
-            Serial.println(pktLog[i].length);
-        }
-
         Serial.println(F("\n========= EAGLE BENCHMARK RESULTS ========="));
         Serial.print(F("  Packets expected: "));
         Serial.println(packetsExpected);
@@ -288,6 +273,21 @@ void loop()
         Serial.print(throughput, 2);
         Serial.println(F(" kbps"));
         Serial.println(F("==========================================\n"));
+
+        Serial.println(F("\n--- Per-packet log ---"));
+        Serial.println(F("  SEQ\tRX ms\tRSSI\tLength"));
+        for (int i = 0; i < packetsReceived; i++)
+        {
+            Serial.print(F("  "));
+            Serial.print(pktLog[i].seqNum);
+            Serial.print(F("\t"));
+            Serial.print(pktLog[i].rxMs);
+            Serial.print(F("\t"));
+            Serial.print(pktLog[i].rssi, 1);
+            Serial.print(F("\t"));
+            Serial.println(pktLog[i].length);
+            delay(10);
+        }
     }
 #endif
 }
