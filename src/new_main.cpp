@@ -46,7 +46,6 @@ void setup()
     pinMode(LED_ORANGE, OUTPUT);
 
 #ifdef IS_CAM
-    // CAM does NOT wait for serial — it may run headless
     delay(500);
     Serial.println(F("Mode: CAM (Transmitter - HelloWorld)"));
 #elifdef IS_EAGLE
