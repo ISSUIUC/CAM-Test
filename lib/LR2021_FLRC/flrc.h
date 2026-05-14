@@ -112,6 +112,11 @@ private:
     void rxFIFODrainChunk(uint8_t *dst, uint16_t len);
 
     uint32_t readIRQ();
+    void clearFifoIrq(uint8_t rxFlags, uint8_t txFlags);
+
+    /* SPI */
+    void spiWrite(const uint8_t *cmd, size_t len);
+    void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
 
 public:
     LR2021 radio;
