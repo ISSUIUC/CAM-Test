@@ -247,7 +247,7 @@ void loop()
         benchmarkDone = true;
 
         unsigned long elapsed = lastRxMs - firstRxMs;
-        float elapsedSec = elapsed / 1000.0f;
+        float elapsedSec = elapsed / (1000.0 * 1000.0);
         float throughput = (totalBytesRx * 8.0f) / elapsedSec / 1000.0f;
         float packetLoss = 100.0f * (packetsExpected - packetsReceived) / (float)packetsExpected;
 
