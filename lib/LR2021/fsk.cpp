@@ -142,24 +142,31 @@ LR2021Error LR2021FSKDriver::setIRQ()
 
     return LR2021Error(LR2021_ERR_NONE, 0);
 }
-
-// GetFskPacketStatus: opcode 0x02 0x47, read 8 bytes back
 LR2021FskPktStatus LR2021FSKDriver::getFskPacketStatus()
 {
-    uint8_t txBuf[8] = {0x02, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    uint8_t rxBuf[8] = {0};
-    spiTransfer(txBuf, rxBuf, sizeof(txBuf));
+    // Phase 1: send opcode only
+    const uint8_t cbuffer[2] = {0x02, 0x47};
+    spiWrite(cbuffer, sizeof(cbuffer));
+
+    // Phase 2: read 8 bytes raw — chip prepends 2 stat bytes before the 6 data bytes
+    // rxBuf[0] = Stat(15:8)
+    // rxBuf[1] = Stat(7:0)
+    // rxBuf[2..3] = pkt_len MSB first
+    // rxBuf[4]    = rssi_avg integer part
+    // rxBuf[5]    = rssi_sync integer part
+    // rxBuf[6]    = flags: [5]=AddrMatchBcast [4]=AddrMatchNode [2]=rssi_avg+0.5 [0]=rssi_sync+0.5
+    // rxBuf[7]    = LQI
+    uint8_t tx[8] = {0};
+    uint8_t rx[8] = {0};
+    spiTransfer(tx, rx, sizeof(rx));
 
     LR2021FskPktStatus s;
-    s.pktlen = (uint16_t)(rxBuf[2] << 8) | rxBuf[3];
-
-    s.rssiAvgRaw = ((uint16_t)rxBuf[4] << 1) | ((rxBuf[6] >> 1) & 0x01);
-    s.rssiSyncRaw = ((uint16_t)rxBuf[5] << 1) | ((rxBuf[6] >> 0) & 0x01);
-
-    s.addrMatchBcast = (rxBuf[6] >> 5) & 0x01;
-    s.addrMatchNode = (rxBuf[6] >> 4) & 0x01;
-    s.lqi = rxBuf[7] * 0.25f; // in 0.25 dB steps
-
+    s.pktlen = (uint16_t)(rx[2] << 8) | rx[3];
+    s.rssiAvg = -(int16_t)rx[4] - (((rx[6] >> 2) & 0x01) ? 0.5f : 0.0f);
+    s.rssiSync = -(int16_t)rx[5] - (((rx[6] >> 0) & 0x01) ? 0.5f : 0.0f);
+    s.addrMatchBcast = (rx[6] >> 5) & 0x01;
+    s.addrMatchNode = (rx[6] >> 4) & 0x01;
+    s.lqi = rx[7] * 0.25f;
     return s;
 }
 

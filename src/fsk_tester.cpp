@@ -131,17 +131,14 @@ void loop()
 
     rxBuf[PAYLOAD_SIZE_FSK - 1] = '\0';
 
-    float rssiAvg = -(pktStatus.rssiAvgRaw / 2.0f);
-    float rssiSync = -(pktStatus.rssiSyncRaw / 2.0f);
-
     Serial.print(F("[EAGLE] #"));
     Serial.print(eagleCounter);
     Serial.print(F(",  msg=\""));
     Serial.print((char *)rxBuf);
     Serial.print(F("\",  RSSI_avg="));
-    Serial.print(rssiAvg, 3);
+    Serial.print(pktStatus.rssiAvg, 3);
     Serial.print(F(" dBm,  RSSI_sync="));
-    Serial.print(rssiSync, 3);
+    Serial.print(pktStatus.rssiSync, 3);
     Serial.print(F(" dBm,  LQI ="));
     Serial.print(pktStatus.lqi, 3);
     Serial.print(", Pktlen =");
