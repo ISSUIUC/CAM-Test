@@ -111,6 +111,16 @@ typedef struct
     uint8_t syncword_index;       // sw_num[3:0] — bits [7:4] of byte 6
 } LR2021FlrcPktStatus;
 
+// Table 11 - 15
+typedef struct
+{
+    uint16_t pktlen;     // bytes 2-3
+    uint8_t rssiAvgRaw;  // byte 4, bits [8:1]
+    uint8_t rssiSyncRaw; // byte 5, bits [8:1]
+    uint8_t flags;       // byte 6: rfu[1:0], AddrMatchBcast, AddrMatchNode
+    uint8_t lqiAndBits;  // byte 7: rssiAvg[0], rssisync[0], Lqi[7:0]
+} LR2021FskPktStatus;
+
 class LR2021FSKDriver
 {
 private:
@@ -130,6 +140,9 @@ private:
     void spiWrite(const uint8_t *cmd, size_t len);
     void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
 
+    /* Other */
+    LR2021FskPktStatus getFskPacketStatus();
+
 public:
     LR2021 radio;
     LR2021Error setIRQ();
@@ -137,7 +150,7 @@ public:
 
     LR2021FSKDriver();
     LR2021Error transmit(uint8_t *data, uint8_t len);
-    LR2021Error receive(uint8_t *data, uint8_t len);
+    LR2021Error receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus);
 
     void transmitCallSign();
 };

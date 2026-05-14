@@ -79,7 +79,7 @@ LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
     }
 }
 
-LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len)
+LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus)
 {
     radioEvent = false;
     // Clear stale RX FIFO before arming  (opcode 0x01 0x1E)
@@ -115,6 +115,8 @@ LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len)
             spiTransfer(txBuf, rxBuf, len + 2);
             memcpy(data, &rxBuf[2], len); // data starts at byte 2
 
+            *outStatus = getFskPacketStatus();
+
             return LR2021Error{LR2021_ERR_NONE, 0};
         }
     }
@@ -137,6 +139,22 @@ LR2021Error LR2021FSKDriver::setIRQ()
     spiWrite(setDioIrqCmd, sizeof(setDioIrqCmd));
 
     return LR2021Error(LR2021_ERR_NONE, 0);
+}
+
+// GetFskPacketStatus: opcode 0x02 0x47, read 8 bytes back
+LR2021FskPktStatus LR2021FSKDriver::getFskPacketStatus()
+{
+    uint8_t txBuf[8] = {0x02, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t rxBuf[8] = {0};
+    spiTransfer(txBuf, rxBuf, sizeof(txBuf));
+
+    LR2021FskPktStatus s;
+    s.pktlen = (uint16_t)(rxBuf[2] << 8) | rxBuf[3];
+    s.rssiAvgRaw = rxBuf[4];  // actual = -(rssiAvgRaw / 2.0f) dBm
+    s.rssiSyncRaw = rxBuf[5]; // actual = -(rssiSyncRaw / 2.0f) dBm
+    s.flags = rxBuf[6];
+    s.lqiAndBits = rxBuf[7];
+    return s;
 }
 
 /* ---- helpers ---*/

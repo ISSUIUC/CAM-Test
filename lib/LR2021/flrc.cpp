@@ -63,7 +63,7 @@ LR2021Error LR2021FLRCDriver::init()
     if (state != RADIOLIB_ERR_NONE) // usually this passes so no printing
         return LR2021Error(LR2021_ERR_PKT_LEN_FAILED, state);
 
-    state = radio.setSyncWord(SYNC_WORD, 4);
+    state = radio.setSyncWord(SYNC_WORD_FLRC, 4);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_SYNC_WORD_FAILED, state);
 

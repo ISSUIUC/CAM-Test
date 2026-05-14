@@ -11,7 +11,7 @@ USBCDC USBSerial;
 #undef Serial
 #define Serial USBSerial
 
-LR2021FLRCDriver driver;
+LR2021FSKDriver driver;
 
 #ifdef IS_CAM
 static uint8_t txBuf[PAYLOAD_SIZE_FSK];
@@ -20,7 +20,7 @@ static uint32_t camCounter = 0;
 
 #ifdef IS_EAGLE
 static uint8_t rxBuf[PAYLOAD_SIZE_FSK];
-static LR2021FlrcPktStatus pktStatus;
+static LR2021FskPktStatus pktStatus;
 static uint32_t eagleCounter = 0;
 #endif
 
@@ -75,11 +75,10 @@ void loop()
 {
 
 #ifdef IS_CAM
-    // Build "helloworld_{counter}" into a zero-padded PAYLOAD_SIZE buffer
-    memset(txBuf, 0, PAYLOAD_SIZE);
-    snprintf((char *)txBuf, PAYLOAD_SIZE, "helloworld_%lu", (unsigned long)camCounter);
+    memset(txBuf, 0, PAYLOAD_SIZE_FSK);
+    snprintf((char *)txBuf, PAYLOAD_SIZE_FSK, "helloworld_%lu", (unsigned long)camCounter);
 
-    LR2021Error txResult = driver.transmit(txBuf);
+    LR2021Error txResult = driver.transmit(txBuf, PAYLOAD_SIZE_FSK);
 
     if (!txResult.ok())
     {
@@ -99,15 +98,14 @@ void loop()
     }
 
     camCounter++;
-    delay(250); // 4 pkt/s — easy to read on serial, change freely
+    delay(250);
 
 #elifdef IS_EAGLE
-    memset(rxBuf, 0, PAYLOAD_SIZE);
-    LR2021Error rxResult = driver.receive(rxBuf, PAYLOAD_SIZE, &pktStatus);
+    memset(rxBuf, 0, PAYLOAD_SIZE_FSK);
+    LR2021Error rxResult = driver.receive(rxBuf, PAYLOAD_SIZE_FSK, &pktStatus);
 
     if (rxResult.driverCode == LR2021_ERR_RX_TIMEOUT)
     {
-        // Silent re-arm — no CAM transmitting yet or gap between packets
         return;
     }
 
@@ -131,23 +129,22 @@ void loop()
         return;
     }
 
-    // Good packet — print message + packet status
-    // Force null-termination so we can print as a C-string
-    rxBuf[PAYLOAD_SIZE - 1] = '\0';
+    rxBuf[PAYLOAD_SIZE_FSK - 1] = '\0';
 
-    float rssiAvg = -(pktStatus.rssi_avg_in_dbm + (pktStatus.rssi_avg_half_dbm ? 0.5f : 0.0f));
-    float rssiSync = -(pktStatus.rssi_sync_in_dbm + (pktStatus.rssi_sync_half_dbm ? 0.5f : 0.0f));
+    float rssiAvg = -(pktStatus.rssiAvgRaw / 2.0f);
+    float rssiSync = -(pktStatus.rssiSyncRaw / 2.0f);
+    float lqi = (float)((pktStatus.lqiAndBits >> 2) & 0x3F) * 0.25f;
 
     Serial.print(F("[EAGLE] #"));
     Serial.print(eagleCounter);
     Serial.print(F("  msg=\""));
     Serial.print((char *)rxBuf);
     Serial.print(F("\"  RSSI_avg="));
-    Serial.print(rssiAvg, 1);
+    Serial.print(rssiAvg, 3);
     Serial.print(F(" dBm  RSSI_sync="));
-    Serial.print(rssiSync, 1);
-    Serial.print(F(" dBm  SW_idx="));
-    Serial.println(pktStatus.syncword_index);
+    Serial.print(rssiSync, 3);
+    Serial.print(F(" dBm  LQI ="));
+    Serial.println(lqi, 3);
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;
