@@ -136,14 +136,16 @@ void loop()
 
     Serial.print(F("[EAGLE] #"));
     Serial.print(eagleCounter);
-    Serial.print(F("  msg=\""));
+    Serial.print(F(",  msg=\""));
     Serial.print((char *)rxBuf);
-    Serial.print(F("\"  RSSI_avg="));
+    Serial.print(F("\",  RSSI_avg="));
     Serial.print(rssiAvg, 3);
-    Serial.print(F(" dBm  RSSI_sync="));
+    Serial.print(F(" dBm,  RSSI_sync="));
     Serial.print(rssiSync, 3);
-    Serial.print(F(" dBm  LQI ="));
-    Serial.println(pktStatus.lqi, 3);
+    Serial.print(F(" dBm,  LQI ="));
+    Serial.print(pktStatus.lqi, 3);
+    Serial.print(", Pktlen =");
+    Serial.println(pktStatus.pktlen);
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;
