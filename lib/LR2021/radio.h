@@ -20,13 +20,19 @@ static const int IRQ_PIN = 9;
 #define FREQ 434.0        // MHz
 #define FREQ_FSK 434.0    // MHz
 #define BITRATE_FLRC 2600 // Kbps -> reference table 18-1 on datahseet
-#define BITRATE_FSK 1000
-#define RX_BANDWIDTH_FSK 2222.22 // khz
-#define FREQ_DEV_FSK 250.0       // khz
-#define POWER 22                 // dBm Tx Power
-#define PREAMBLE_LENGTH 24       // bit
-#define XTAL_MODE 0              // tcxoVoltage argument, setting to 0 brings it to xtal mode
-#define CRC_LENGTH 3             // bits, 0, 1, 2, 3
+
+#define BITRATE_FSK_434 1000
+#define RX_BANDWIDTH_FSK_434 2222.22 // khz Table 11-2
+#define FREQ_DEV_FSK_434 250.0       // khz
+
+#define BITRATE_FSK_915 2000
+#define RX_BANDWIDTH_FSK_915 1111.10 // khz Table 11-2
+#define FREQ_DEV_FSK_915 500         // khz
+
+#define POWER 22           // dBm Tx Power
+#define PREAMBLE_LENGTH 24 // bit
+#define XTAL_MODE 0        // tcxoVoltage argument, setting to 0 brings it to xtal mode
+#define CRC_LENGTH 3       // bits, 0, 1, 2, 3
 
 /* FIFO */
 #define FIFO_TX_CHUNK_1 255    // bytes in first write (fills FIFO without overflow)

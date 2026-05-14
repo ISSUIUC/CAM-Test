@@ -16,7 +16,8 @@ LR2021Error LR2021FSKDriver::init()
 
     Serial.print(F("Initializing ... "));
 
-    int state = radio.beginGFSK(FREQ_FSK, BITRATE_FSK, FREQ_DEV_FSK, RX_BANDWIDTH_FSK, POWER, PREAMBLE_LENGTH, XTAL_MODE);
+    // use 434 configureations for now.
+    int state = radio.beginGFSK(FREQ_FSK, BITRATE_FSK_434, FREQ_DEV_FSK_434, RX_BANDWIDTH_FSK_434, POWER, PREAMBLE_LENGTH, XTAL_MODE);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_FSK_INIT_FAILED, state);
 
