@@ -1,7 +1,8 @@
 import serial
 import time
 
-DEVICE = "/dev/tty.usbmodem01"
+# DEVICE = "/dev/tty.usbmodem01"
+DEVICE = "COM7"
 BAUDRATE = 115200
 LOG_FILE = "log.txt"
 
