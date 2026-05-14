@@ -13,26 +13,17 @@
 
 // LR2021FLRCDriver driver;
 
-// // ─────────────────────────────────────────────
-// //  CAM state
-// // ─────────────────────────────────────────────
 // #ifdef IS_CAM
 // static uint8_t txBuf[PAYLOAD_SIZE];
 // static uint32_t camCounter = 0;
 // #endif
 
-// // ─────────────────────────────────────────────
-// //  EAGLE state
-// // ─────────────────────────────────────────────
 // #ifdef IS_EAGLE
 // static uint8_t rxBuf[PAYLOAD_SIZE];
 // static LR2021FlrcPktStatus pktStatus;
 // static uint32_t eagleCounter = 0;
 // #endif
 
-// // ─────────────────────────────────────────────
-// //  setup()
-// // ─────────────────────────────────────────────
 // void setup()
 // {
 //     setCpuFrequencyMhz(240);
@@ -80,12 +71,9 @@
 // #endif
 // }
 
-// // ─────────────────────────────────────────────
-// //  loop()
-// // ─────────────────────────────────────────────
 // void loop()
 // {
-// // ── CAM ──────────────────────────────────────
+
 // #ifdef IS_CAM
 //     // Build "helloworld_{counter}" into a zero-padded PAYLOAD_SIZE buffer
 //     memset(txBuf, 0, PAYLOAD_SIZE);
@@ -113,7 +101,6 @@
 //     camCounter++;
 //     delay(250); // 4 pkt/s — easy to read on serial, change freely
 
-// // ── EAGLE ─────────────────────────────────────
 // #elifdef IS_EAGLE
 //     memset(rxBuf, 0, PAYLOAD_SIZE);
 //     LR2021Error rxResult = driver.receive(rxBuf, PAYLOAD_SIZE, &pktStatus);

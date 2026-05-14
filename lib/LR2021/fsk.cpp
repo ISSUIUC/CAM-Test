@@ -181,8 +181,10 @@ IRAM_ATTR void LR2021FSKDriver::setFlag()
 // Might not be necessary
 void LR2021FSKDriver::transmitCallSign()
 {
-    radio.variablePacketLengthMode();
+    radio.variablePacketLengthMode(PAYLOAD_SIZE_FSK);
     radio.startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
     delay(500);
-    radio.fixedPacketLengthMode(PAYLOAD_SIZE);
+    radio.fixedPacketLengthMode(PAYLOAD_SIZE_FSK);
+    delay(10);
+    setIRQ();
 }
