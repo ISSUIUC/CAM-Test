@@ -133,7 +133,6 @@ void loop()
 
     float rssiAvg = -(pktStatus.rssiAvgRaw / 2.0f);
     float rssiSync = -(pktStatus.rssiSyncRaw / 2.0f);
-    float lqi = (float)((pktStatus.lqiAndBits >> 2) & 0x3F) * 0.25f;
 
     Serial.print(F("[EAGLE] #"));
     Serial.print(eagleCounter);
@@ -144,7 +143,7 @@ void loop()
     Serial.print(F(" dBm  RSSI_sync="));
     Serial.print(rssiSync, 3);
     Serial.print(F(" dBm  LQI ="));
-    Serial.println(lqi, 3);
+    Serial.println(pktStatus.lqi, 3);
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;

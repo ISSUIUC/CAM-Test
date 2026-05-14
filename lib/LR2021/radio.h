@@ -112,13 +112,15 @@ typedef struct
 } LR2021FlrcPktStatus;
 
 // Table 11 - 15
+
 typedef struct
 {
-    uint16_t pktlen;     // bytes 2-3
-    uint8_t rssiAvgRaw;  // byte 4, bits [8:1]
-    uint8_t rssiSyncRaw; // byte 5, bits [8:1]
-    uint8_t flags;       // byte 6: rfu[1:0], AddrMatchBcast, AddrMatchNode
-    uint8_t lqiAndBits;  // byte 7: rssiAvg[0], rssisync[0], Lqi[7:0]
+    uint16_t pktlen;
+    uint16_t rssiAvgRaw;  // 9-bit raw; actual dBm = -(rssiAvgRaw / 2.0f)
+    uint16_t rssiSyncRaw; // 9-bit raw; actual dBm = -(rssiSyncRaw / 2.0f)
+    uint8_t addrMatchBcast;
+    uint8_t addrMatchNode;
+    float lqi; // dB, in 0.25 dB steps (>10 dB = good link)
 } LR2021FskPktStatus;
 
 class LR2021FSKDriver

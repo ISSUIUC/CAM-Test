@@ -152,10 +152,14 @@ LR2021FskPktStatus LR2021FSKDriver::getFskPacketStatus()
 
     LR2021FskPktStatus s;
     s.pktlen = (uint16_t)(rxBuf[2] << 8) | rxBuf[3];
-    s.rssiAvgRaw = rxBuf[4];  // actual = -(rssiAvgRaw / 2.0f) dBm
-    s.rssiSyncRaw = rxBuf[5]; // actual = -(rssiSyncRaw / 2.0f) dBm
-    s.flags = rxBuf[6];
-    s.lqiAndBits = rxBuf[7];
+
+    s.rssiAvgRaw = ((uint16_t)rxBuf[4] << 1) | ((rxBuf[6] >> 1) & 0x01);
+    s.rssiSyncRaw = ((uint16_t)rxBuf[5] << 1) | ((rxBuf[6] >> 0) & 0x01);
+
+    s.addrMatchBcast = (rxBuf[6] >> 5) & 0x01;
+    s.addrMatchNode = (rxBuf[6] >> 4) & 0x01;
+    s.lqi = rxBuf[7] * 0.25f; // in 0.25 dB steps
+
     return s;
 }
 
