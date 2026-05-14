@@ -142,6 +142,7 @@ public:
     void transmitCallSign();
 };
 
+// BAD BAD BAD BAD ASFJLADSFJ;LASDJFKASDLFJKLAS DO NOT USE PLEASE
 class LR2021FLRCDriver
 {
 private:
