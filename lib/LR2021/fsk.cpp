@@ -51,6 +51,7 @@ LR2021Error LR2021FSKDriver::init()
 
 LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
 {
+    radioEvent = false;
     // RadioTxFifo write opcode: 0x00 0x02
     static uint8_t cmd[PAYLOAD_SIZE_FSK + 2];
     cmd[0] = 0x00;
@@ -80,6 +81,7 @@ LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
 
 LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len)
 {
+    radioEvent = false;
     // Clear stale RX FIFO before arming  (opcode 0x01 0x1E)
     uint8_t clearRxCmd[] = {0x01, 0x1E};
     spiWrite(clearRxCmd, sizeof(clearRxCmd));
