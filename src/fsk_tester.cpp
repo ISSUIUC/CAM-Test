@@ -40,11 +40,11 @@ void setup()
     delay(500);
     Serial.println(F("Mode: CAM (Transmitter - HelloWorld)"));
 #elifdef IS_EAGLE
-    while (!Serial)
-    {
-        delay(100);
-    }
-    delay(50);
+    // while (!Serial)
+    // {
+    //     delay(100);
+    // }
+    delay(500);
     Serial.println(F("Mode: EAGLE (Receiver - HelloWorld)"));
 #endif
 
