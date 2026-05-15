@@ -24,6 +24,34 @@ static LR2021FskPktStatus pktStatus;
 static uint32_t eagleCounter = 0;
 #endif
 
+void print(uint8_t *buf, size_t len)
+{
+    uint32_t off = 0;
+    uint8_t tmp[512];
+
+    while (off < len)
+    {
+        uint32_t chunk = len - off;
+
+        if (chunk > 512)
+            chunk = 512;
+
+        memcpy(tmp, buf + off, chunk);
+
+        size_t wrote = Serial.write(tmp, chunk);
+        Serial.flush();
+
+        if (wrote > 0)
+        {
+            off += wrote;
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(1));
+        }
+    }
+};
+
 void setup()
 {
     setCpuFrequencyMhz(240);
@@ -132,11 +160,13 @@ void loop()
     rxBuf[PAYLOAD_SIZE_FSK - 1] = '\0';
 
     char outBuf[320];
-    snprintf(outBuf, sizeof(outBuf),
-             "[EAGLE] #%lu, msg=\"%s\", RSSI_avg=%.3f dBm, RSSI_sync=%.3f dBm, LQI=%.3f, Pktlen=%u",
-             (unsigned long)eagleCounter, (char *)rxBuf,
-             pktStatus.rssiAvg, pktStatus.rssiSync, pktStatus.lqi, pktStatus.pktlen);
-    Serial.println(outBuf);
+    int len = snprintf(outBuf, sizeof(outBuf),
+                       "[EAGLE] #%lu, msg=\"%s\", RSSI_avg=%.3f dBm, RSSI_sync=%.3f dBm, LQI=%.3f, Pktlen=%u\n",
+                       (unsigned long)eagleCounter, (char *)rxBuf,
+                       pktStatus.rssiAvg, pktStatus.rssiSync, pktStatus.lqi, pktStatus.pktlen);
+
+    if (len > 0)
+        print((uint8_t *)outBuf, (size_t)len);
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;
