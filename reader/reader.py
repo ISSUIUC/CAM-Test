@@ -21,7 +21,7 @@ def main():
                     line = raw.decode(errors="replace").rstrip("\r\n")
                     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
                     output = f"[{timestamp}] {line}"
-                    print(output)
+                    # print(output)
                     log.write(output + "\n")
                     log.flush()
                 except serial.SerialException as exc:

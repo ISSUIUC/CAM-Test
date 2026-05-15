@@ -131,18 +131,12 @@ void loop()
 
     rxBuf[PAYLOAD_SIZE_FSK - 1] = '\0';
 
-    Serial.print(F("[EAGLE] #"));
-    Serial.print(eagleCounter);
-    Serial.print(F(",  msg=\""));
-    Serial.print((char *)rxBuf);
-    Serial.print(F("\",  RSSI_avg="));
-    Serial.print(pktStatus.rssiAvg, 3);
-    Serial.print(F(" dBm,  RSSI_sync="));
-    Serial.print(pktStatus.rssiSync, 3);
-    Serial.print(F(" dBm,  LQI ="));
-    Serial.print(pktStatus.lqi, 3);
-    Serial.print(", Pktlen =");
-    Serial.println(pktStatus.pktlen);
+    char outBuf[320];
+    snprintf(outBuf, sizeof(outBuf),
+             "[EAGLE] #%lu, msg=\"%s\", RSSI_avg=%.3f dBm, RSSI_sync=%.3f dBm, LQI=%.3f, Pktlen=%u",
+             (unsigned long)eagleCounter, (char *)rxBuf,
+             pktStatus.rssiAvg, pktStatus.rssiSync, pktStatus.lqi, pktStatus.pktlen);
+    Serial.println(outBuf);
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;
