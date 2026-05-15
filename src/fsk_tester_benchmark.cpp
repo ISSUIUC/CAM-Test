@@ -85,6 +85,11 @@ void setup()
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_ORANGE, OUTPUT);
 
+    while (!Serial)
+    {
+        delay(100);
+    }
+
 #ifdef IS_CAM
     delay(500);
     Serial.println(F("Mode: CAM (Transmitter - Benchmark FSK)"));
