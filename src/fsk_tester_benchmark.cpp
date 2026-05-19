@@ -33,16 +33,21 @@ bool benchmarkStarted = false;
 bool benchmarkDone = false;
 int rxErrors = 0;
 
+// Total log slots = good packets + possible CRC errors, cap generously
+#define PKT_LOG_MAX (BENCHMARK_PACKET_COUNT * 2)
+
 struct PktLog
 {
-    int seqNum;
+    int seqNum; // -1 for CRC error entries
     float rssiAvg;
     float rssiSync;
     float lqi;
     int length;
     unsigned long rxUs;
+    bool crcError; // true if this entry is a CRC mismatch, not a good packet
 };
-PktLog pktLog[BENCHMARK_PACKET_COUNT];
+PktLog pktLog[PKT_LOG_MAX];
+int pktLogCount = 0; // tracks total entries (good + CRC errors)
 #endif
 
 void setup()
@@ -193,14 +198,12 @@ void loop()
 
     if (rxResult.driverCode == LR2021_ERR_RX_TIMEOUT)
     {
-        // check for stall: if benchmark started and no packet for 500ms, close it out
         if (benchmarkStarted && (now - lastRxUs > 500UL * 1000UL))
         {
             int totalAccountedFor = packetsReceived + rxErrors;
             if (totalAccountedFor < packetsExpected)
                 rxErrors += packetsExpected - totalAccountedFor;
 
-            // force completion
             goto finish;
         }
         return;
@@ -211,6 +214,33 @@ void loop()
         rxErrors++;
         if (benchmarkStarted)
             lastRxUs = now;
+
+        // Log the CRC error entry
+        if (pktLogCount < PKT_LOG_MAX)
+        {
+            pktLog[pktLogCount].seqNum = -1;
+            pktLog[pktLogCount].rssiAvg = pktStatus.rssiAvg;
+            pktLog[pktLogCount].rssiSync = pktStatus.rssiSync;
+            pktLog[pktLogCount].lqi = pktStatus.lqi;
+            pktLog[pktLogCount].length = pktStatus.pktlen;
+            pktLog[pktLogCount].rxUs = benchmarkStarted ? (now - firstRxUs) : 0;
+            pktLog[pktLogCount].crcError = true;
+            pktLogCount++;
+        }
+
+        // Immediate print
+        char crcBuf[96];
+        int clen = snprintf(crcBuf, sizeof(crcBuf),
+                            "[EAGLE] CRC error @ +%lu us  RSSI_avg=%.1f  RSSI_sync=%.1f  LQI=%.2f  len=%d\n",
+                            benchmarkStarted ? (now - firstRxUs) : 0UL,
+                            pktStatus.rssiAvg, pktStatus.rssiSync,
+                            pktStatus.lqi, pktStatus.pktlen);
+        if (clen > 0)
+        {
+            Serial.write(crcBuf, (size_t)clen);
+            Serial.flush();
+        }
+
         digitalWrite(LED_RED, HIGH);
         delay(10);
         digitalWrite(LED_RED, LOW);
@@ -234,7 +264,7 @@ void loop()
         goto check_done;
     }
 
-    // good packet
+    // Good packet
     {
         if (!benchmarkStarted)
         {
@@ -246,14 +276,16 @@ void loop()
 
         int seqNum = ((int)buf[0] << 8) | buf[1];
 
-        if (packetsReceived < BENCHMARK_PACKET_COUNT)
+        if (pktLogCount < PKT_LOG_MAX)
         {
-            pktLog[packetsReceived].seqNum = seqNum;
-            pktLog[packetsReceived].length = pktStatus.pktlen;
-            pktLog[packetsReceived].rssiAvg = pktStatus.rssiAvg;
-            pktLog[packetsReceived].rssiSync = pktStatus.rssiSync;
-            pktLog[packetsReceived].lqi = pktStatus.lqi;
-            pktLog[packetsReceived].rxUs = now - firstRxUs;
+            pktLog[pktLogCount].seqNum = seqNum;
+            pktLog[pktLogCount].length = pktStatus.pktlen;
+            pktLog[pktLogCount].rssiAvg = pktStatus.rssiAvg;
+            pktLog[pktLogCount].rssiSync = pktStatus.rssiSync;
+            pktLog[pktLogCount].lqi = pktStatus.lqi;
+            pktLog[pktLogCount].rxUs = now - firstRxUs;
+            pktLog[pktLogCount].crcError = false;
+            pktLogCount++;
         }
 
         packetsReceived++;
@@ -299,19 +331,33 @@ finish:
     Serial.println(F("==========================================\n"));
 
     Serial.println(F("\n--- Per-packet log ---"));
-    Serial.println(F("  SEQ\tRX_us\tRSSI_avg\tRSSI_sync\tLQI\tLength"));
+    Serial.println(F("  SEQ\t\tRX_us\t\tRSSI_avg\tRSSI_sync\tLQI\tLength"));
 
-    for (int i = 0; i < packetsReceived && i < BENCHMARK_PACKET_COUNT; i++)
+    for (int i = 0; i < pktLogCount; i++)
     {
         char lineBuf[128];
-        int llen = snprintf(lineBuf, sizeof(lineBuf),
-                            "  %d\t%lu\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
+        int llen;
+        if (pktLog[i].crcError)
+        {
+            llen = snprintf(lineBuf, sizeof(lineBuf),
+                            "  [CRC]\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
+                            pktLog[i].rxUs,
+                            pktLog[i].rssiAvg,
+                            pktLog[i].rssiSync,
+                            pktLog[i].lqi,
+                            pktLog[i].length);
+        }
+        else
+        {
+            llen = snprintf(lineBuf, sizeof(lineBuf),
+                            "  %d\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
                             pktLog[i].seqNum,
                             pktLog[i].rxUs,
                             pktLog[i].rssiAvg,
                             pktLog[i].rssiSync,
                             pktLog[i].lqi,
                             pktLog[i].length);
+        }
         Serial.write(lineBuf, llen);
         Serial.flush();
     }
