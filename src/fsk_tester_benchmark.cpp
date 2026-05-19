@@ -20,7 +20,7 @@ uint8_t payload[PAYLOAD_SIZE_FSK];
 int packetsSent = 0;
 int packetsOk = 0;
 int packetsFailed = 0;
-unsigned long benchStartMs = 0;
+unsigned long benchStartus = 0;
 #endif
 
 #ifdef IS_EAGLE
@@ -119,7 +119,7 @@ void setup()
         packetsOk++;
     }
     packetsSent = 1;
-    benchStartMs = millis();
+    benchStartus = micros();
 #endif
 
 #ifdef IS_EAGLE
@@ -151,9 +151,9 @@ void loop()
     }
     else
     {
-        unsigned long elapsed = millis() - benchStartMs;
+        unsigned long elapsed = micros() - benchStartus;
         long totalBytes = (long)packetsOk * PAYLOAD_SIZE_FSK;
-        float elapsedSec = elapsed / 1000.0f;
+        float elapsedSec = elapsed / (1000.0f * 1000.0f);
         float throughput = (totalBytes * 8.0f) / elapsedSec / 1000.0f;
 
         digitalWrite(LED_GREEN, LOW);

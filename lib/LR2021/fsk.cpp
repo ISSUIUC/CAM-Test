@@ -90,6 +90,55 @@ LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
     }
 }
 
+LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t len)
+{
+
+    // RadioTxFifo write opcode: 0x00 0x02
+    static uint8_t cmd[PAYLOAD_SIZE_FSK + 2] = {0x00, 0x02};
+    memcpy(&cmd[2], packets[0], len);
+    spiWrite(cmd, len + 2);
+
+    uint8_t setTxCmd[] = {0x02, 0x0D, 0x00, 0x00, 0x00, 0x00};
+    spiWrite(setTxCmd, sizeof(setTxCmd));
+
+    for (int i = 1; i < count; i++)
+    {
+        memcpy(&cmd[2], packets[i], len);
+        // ignore busy lol and just push into fifo
+        digitalWrite(LR2021_CS, LOW);
+        mySPI.transferBytes(cmd, nullptr, len + 2);
+        digitalWrite(LR2021_CS, HIGH);
+
+        // now we wait for radioEvents
+        radioEvent = false;
+        while (!radioEvent)
+            ; // lowkey can do like pass/yield but keep it blcoking for now
+
+        // there has been a radio event, lets load the next one:
+        radioEvent = false;
+        uint32_t irq = readIRQ();
+        // not TxDone
+        if (!(irq & (1UL << 19)))
+            return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
+        spiWrite(setTxCmd, sizeof(setTxCmd));
+    }
+
+    // final packet's TxDone beacuse we never got to it.
+    radioEvent = false;
+    unsigned long start = micros();
+    while (!radioEvent)
+    {
+        if (micros() - start > 3000 * 1000)
+            return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
+    }
+    radioEvent = false;
+    uint32_t irq = readIRQ();
+    if (!(irq & (1UL << 19)))
+        return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
+
+    return LR2021Error{LR2021_ERR_NONE, 0};
+}
+
 LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus)
 {
     radioEvent = false;

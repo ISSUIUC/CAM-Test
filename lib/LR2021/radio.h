@@ -155,6 +155,7 @@ public:
 
     LR2021FSKDriver();
     LR2021Error transmit(uint8_t *data, uint8_t len);
+    LR2021Error transmitBurst(uint8_t **packets, int count, uint8_t len); // len should be fsk max size
     LR2021Error receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus);
 
     void transmitCallSign();
