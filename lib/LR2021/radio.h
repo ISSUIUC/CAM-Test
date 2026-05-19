@@ -9,7 +9,7 @@
 
 static const uint16_t PAYLOAD_SIZE = 511;
 static const uint8_t PAYLOAD_SIZE_FSK = RADIOLIB_LR2021_MAX_PACKET_LENGTH;
-#define SPI_SPEED 48000000
+#define SPI_SPEED 16000000
 
 static uint8_t SYNC_WORD_FLRC[] = {0x2D, 0x01, 0x4B, 0x1D};
 static uint8_t SYNC_WORD_FSK[] = {0x01, 0x23, 0x45, 0x67,

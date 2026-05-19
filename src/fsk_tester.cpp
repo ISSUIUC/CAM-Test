@@ -165,8 +165,8 @@ void loop()
                        (unsigned long)eagleCounter, (char *)rxBuf,
                        pktStatus.rssiAvg, pktStatus.rssiSync, pktStatus.lqi, pktStatus.pktlen);
 
-    if (len > 0)
-        print((uint8_t *)outBuf, (size_t)len);
+    Serial.write(outBuf, len);
+    Serial.flush();
 
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     eagleCounter++;
