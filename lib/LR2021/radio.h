@@ -21,7 +21,7 @@ static const int IRQ_PIN = 9;
 #define FREQ_434 434.0 // mhz
 
 #define FREQ FREQ_434     // MHz
-#define FREQ_FSK FREQ_915 // MHz
+#define FREQ_FSK FREQ_434 // MHz
 #define BITRATE_FLRC 2600 // Kbps -> reference table 18-1 on datahseet
 
 #define BITRATE_FSK_434 1000
