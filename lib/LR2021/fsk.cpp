@@ -53,6 +53,10 @@ LR2021Error LR2021FSKDriver::init()
 
     setIRQ();
 
+    // SetRxTxFallbackMode → FS (0x03), opcode 0x0206
+    uint8_t fallbackCmd[] = {0x02, 0x06, 0x03};
+    spiWrite(fallbackCmd, sizeof(fallbackCmd));
+
     return LR2021Error(LR2021_ERR_NONE, 0);
 }
 
