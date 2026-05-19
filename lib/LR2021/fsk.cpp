@@ -74,11 +74,11 @@ LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
     uint8_t setTxCmd[] = {0x02, 0x0D, 0x00, 0x00, 0x00, 0x00};
     spiWrite(setTxCmd, sizeof(setTxCmd));
 
-    const unsigned long timeout = 3000;
-    unsigned long start = millis();
+    const unsigned long timeout = 3000 * 1000;
+    unsigned long start = micros();
     while (true)
     {
-        if (millis() - start > timeout)
+        if (micros() - start > timeout)
             return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
         if (!radioEvent)
             continue;
@@ -101,11 +101,11 @@ LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len, LR2021FskPktSta
     uint8_t setRxCmd[] = {0x02, 0x0C, 0xFF, 0xFF, 0xFF};
     spiWrite(setRxCmd, sizeof(setRxCmd));
 
-    const unsigned long timeout = 3000;
-    unsigned long start = millis();
+    const unsigned long timeout = 3000 * 1000;
+    unsigned long start = micros();
     while (true)
     {
-        if (millis() - start > timeout)
+        if (micros() - start > timeout)
             return LR2021Error{LR2021_ERR_RX_TIMEOUT, 0};
         if (!radioEvent)
             continue;
