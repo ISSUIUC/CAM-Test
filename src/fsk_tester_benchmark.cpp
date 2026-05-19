@@ -66,7 +66,10 @@ void setup()
     delay(500);
     Serial.println(F("Mode: CAM (Transmitter - Benchmark FSK)"));
 #elifdef IS_EAGLE
-    delay(500);
+    while (!Serial)
+    {
+        delay(100);
+    }
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark FSK)"));
 #endif
 
