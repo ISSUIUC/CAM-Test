@@ -95,6 +95,8 @@ struct LR2021Error
             return "radio.setDataShaping(); failed";
         case LR2021_ERR_FSK_FIXED_PACKET_MD:
             return "radio.fixedPacketLengthMode(PAYLOAD_SIZE_FSK); failed";
+        case LR2021_ERR_GENERIC:
+            return "GL bro idk where this error is";
         default:
             return "unknown error";
         }
