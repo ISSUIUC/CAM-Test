@@ -80,7 +80,7 @@ LR2021Error LR2021FSKDriver::transmit(uint8_t *data, uint8_t len)
         if (micros() - start > timeout)
             return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
         if (!radioEvent)
-            continue;
+            taskYIELD();
         radioEvent = false;
 
         uint32_t irq = readIRQ(); // GetAndClearIrqStatus (same as FLRC)
@@ -156,7 +156,7 @@ LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len, LR2021FskPktSta
         if (micros() - start > timeout)
             return LR2021Error{LR2021_ERR_RX_TIMEOUT, 0};
         if (!radioEvent)
-            continue;
+            taskYIELD();
         radioEvent = false;
 
         uint32_t irq = readIRQ();

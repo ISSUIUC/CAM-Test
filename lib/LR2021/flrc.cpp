@@ -133,7 +133,7 @@ LR2021Error LR2021FLRCDriver::transmit(uint8_t *data)
             return LR2021Error(LR2021_ERR_TX_TIMEOUT, 0);
 
         if (!radioEvent)
-            continue;
+            taskYIELD();
 
         radioEvent = false;
 
@@ -283,7 +283,7 @@ LR2021Error LR2021FLRCDriver::receive(uint8_t *data, uint16_t len, LR2021FlrcPkt
             return LR2021Error(LR2021_ERR_RX_TIMEOUT, 0);
 
         if (!radioEvent)
-            continue;
+            taskYIELD();
 
         radioEvent = false;
 
