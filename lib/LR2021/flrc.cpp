@@ -1,9 +1,10 @@
 #include "radio.h"
 
+/* DEPRECATED DO NOT USE */
+
 LR2021FLRCDriver::LR2021FLRCDriver()
-    : mySPI(HSPI),
-      spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
-      radio(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, mySPI, spiSettings))
+    : spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
+      radio(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, SPI, spiSettings))
 {
 }
 
@@ -11,15 +12,8 @@ LR2021FLRCDriver *LR2021FLRCDriver::_instance = nullptr;
 
 LR2021Error LR2021FLRCDriver::init()
 {
-    if (!mySPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, LR2021_CS))
-    {
-        // Serial.println("SPI failed wamp wamp");
-        // while (true)
-        // {
-        //     delay(10);
-        // }
-        return LR2021Error(LR2021_ERR_SPI_INIT_FAILED, 0);
-    }
+    pinMode(LR2021_CS, OUTPUT);
+    digitalWrite(LR2021_CS, HIGH);
 
     radio.irqDioNum = IRQ_PIN;
 
@@ -352,20 +346,20 @@ void LR2021FLRCDriver::spiWrite(const uint8_t *cmd, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    mySPI.beginTransaction(spiSettings);
+    SPI.beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    mySPI.transferBytes(cmd, nullptr, len);
+    SPI.transferBytes(cmd, nullptr, len);
     digitalWrite(LR2021_CS, HIGH);
-    mySPI.endTransaction();
+    SPI.endTransaction();
 }
 
 void LR2021FLRCDriver::spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    mySPI.beginTransaction(spiSettings);
+    SPI.beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    mySPI.transferBytes(txBuf, rxBuf, len);
+    SPI.transferBytes(txBuf, rxBuf, len);
     digitalWrite(LR2021_CS, HIGH);
-    mySPI.endTransaction();
+    SPI.endTransaction();
 }

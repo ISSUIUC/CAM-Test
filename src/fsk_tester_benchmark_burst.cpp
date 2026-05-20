@@ -57,6 +57,8 @@ void setup()
     USB.begin();
     Serial.begin(115200);
 
+    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_BLUE, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);

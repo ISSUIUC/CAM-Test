@@ -129,7 +129,6 @@ struct LR2021FskPktStatus
 class LR2021FSKDriver
 {
 private:
-    SPIClass mySPI;
     SPISettings spiSettings;
 
     static LR2021FSKDriver *_instance;
@@ -165,7 +164,6 @@ public:
 class LR2021FLRCDriver
 {
 private:
-    SPIClass mySPI;
     SPISettings spiSettings;
 
     static LR2021FLRCDriver *_instance;

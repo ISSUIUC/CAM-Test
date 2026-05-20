@@ -1,3 +1,5 @@
+/* DEPCRATED EXAMPLE CODE */
+
 // #include <Arduino.h>
 // #include "pins.h"
 // #include <RadioLib.h>
