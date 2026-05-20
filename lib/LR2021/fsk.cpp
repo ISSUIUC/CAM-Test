@@ -3,54 +3,59 @@
 LR2021FSKDriver *LR2021FSKDriver::_instance = nullptr;
 
 LR2021FSKDriver::LR2021FSKDriver()
-    : spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
-      radio(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, SPI, spiSettings))
+    : spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0)
 {
 }
 
 LR2021Error LR2021FSKDriver::init(SPIClass &spi)
 {
     _spi = &spi;
+    if (radio != nullptr)
+    {
+        delete radio;
+        radio = nullptr;
+    }
+    radio = new LR2021(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, *_spi, spiSettings));
 
     pinMode(LR2021_CS, OUTPUT);
     digitalWrite(LR2021_CS, HIGH);
 
-    radio.irqDioNum = IRQ_PIN;
+    radio->irqDioNum = IRQ_PIN;
 
     Serial.print(F("Initializing ... "));
 
     // use 434 configureations for now.
     int state = 0;
     if (FREQ_FSK == FREQ_434)
-        state = radio.beginGFSK(FREQ_FSK, BITRATE_FSK_434, FREQ_DEV_FSK_434, RX_BANDWIDTH_FSK_434, POWER, PREAMBLE_LENGTH, XTAL_MODE);
+        state = radio->beginGFSK(FREQ_FSK, BITRATE_FSK_434, FREQ_DEV_FSK_434, RX_BANDWIDTH_FSK_434, POWER, PREAMBLE_LENGTH, XTAL_MODE);
     else
-        state = radio.beginGFSK(FREQ_FSK, BITRATE_FSK_915, FREQ_DEV_FSK_915, RX_BANDWIDTH_FSK_915, POWER, PREAMBLE_LENGTH, XTAL_MODE);
+        state = radio->beginGFSK(FREQ_FSK, BITRATE_FSK_915, FREQ_DEV_FSK_915, RX_BANDWIDTH_FSK_915, POWER, PREAMBLE_LENGTH, XTAL_MODE);
 
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_FSK_INIT_FAILED, state);
 
-    state = radio.setDataShaping(RADIOLIB_SHAPING_NONE);
+    state = radio->setDataShaping(RADIOLIB_SHAPING_NONE);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_DATASHAPING, state);
 
-    state = radio.fixedPacketLengthMode(PAYLOAD_SIZE_FSK);
+    state = radio->fixedPacketLengthMode(PAYLOAD_SIZE_FSK);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_FSK_FIXED_PACKET_MD, state);
 
-    state = radio.setSyncWord(SYNC_WORD_FSK, 4);
+    state = radio->setSyncWord(SYNC_WORD_FSK, 4);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_SYNC_WORD_FAILED, state);
 
-    state = radio.setCRC(2, 0xFFFF, 0x8005, false); // IBM CRC (2 bytes, initial 0xFFFF, polynomial 0x8005, non-inverted)
+    state = radio->setCRC(2, 0xFFFF, 0x8005, false); // IBM CRC (2 bytes, initial 0xFFFF, polynomial 0x8005, non-inverted)
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_CRC_CONFIG_FAILED, state);
 
-    state = radio.disableAddressFiltering();
+    state = radio->disableAddressFiltering();
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_ADDRESS_FILTERING, state);
 
     _instance = this;
-    radio.setIrqAction(setFlag);
+    radio->setIrqAction(setFlag);
 
     setIRQ();
 
@@ -273,10 +278,10 @@ IRAM_ATTR void LR2021FSKDriver::setFlag()
 // Might not be necessary
 void LR2021FSKDriver::transmitCallSign()
 {
-    radio.variablePacketLengthMode(PAYLOAD_SIZE_FSK);
-    radio.startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
+    radio->variablePacketLengthMode(PAYLOAD_SIZE_FSK);
+    radio->startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
     delay(500);
-    radio.fixedPacketLengthMode(PAYLOAD_SIZE_FSK);
+    radio->fixedPacketLengthMode(PAYLOAD_SIZE_FSK);
     delay(10);
     setIRQ();
 }

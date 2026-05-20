@@ -41,7 +41,7 @@ private:
     LR2021FskPktStatus getFskPacketStatus();
 
 public:
-    LR2021 radio;
+    LR2021 *radio;
     LR2021Error setIRQ();
     LR2021Error init(SPIClass &spi);
 

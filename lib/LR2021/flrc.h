@@ -55,7 +55,7 @@ private:
     void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
 
 public:
-    LR2021 radio;
+    LR2021 *radio;
 
     LR2021FLRCDriver();
     LR2021Error init();

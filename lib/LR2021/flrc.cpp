@@ -5,7 +5,7 @@
 LR2021FLRCDriver::LR2021FLRCDriver()
     : mySPI(HSPI),
       spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
-      radio(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, SPI, spiSettings))
+      radio(nullptr)
 {
 }
 
@@ -18,12 +18,14 @@ LR2021Error LR2021FLRCDriver::init()
         return LR2021Error(LR2021_ERR_SPI_INIT_FAILED, 0);
     }
 
-    radio.irqDioNum = IRQ_PIN;
+    radio = new LR2021(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, mySPI, spiSettings));
+
+    radio->irqDioNum = IRQ_PIN;
 
     Serial.print(F("Initializing ... "));
 
 #ifdef IS_EAGLE
-    int state = radio.beginFLRC(
+    int state = radio->beginFLRC(
         FREQ,
         BITRATE_FLRC,
         RADIOLIB_LR2021_FLRC_CR_1_0,
@@ -32,7 +34,7 @@ LR2021Error LR2021FLRCDriver::init()
         RADIOLIB_SHAPING_NONE,
         XTAL_MODE);
 #elifdef IS_CAM
-    int state = radio.beginFLRC(
+    int state = radio->beginFLRC(
         FREQ,
         BITRATE_FLRC,
         RADIOLIB_LR2021_FLRC_CR_2_3,
@@ -56,20 +58,20 @@ LR2021Error LR2021FLRCDriver::init()
     // NOTE HERE: I had to change the files lib/RadioLib/src/modules/LR2021/LR2021_config.cpp
     // to modify the function to accept a uint16_t PAYLOAD_SIZE_FLRC variable
     // there was no change in preformance; however, once this fix was applied, which is confusing.
-    state = radio.fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
+    state = radio->fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
     if (state != RADIOLIB_ERR_NONE) // usually this passes so no printing
         return LR2021Error(LR2021_ERR_PKT_LEN_FAILED, state);
 
-    state = radio.setSyncWord(SYNC_WORD_FLRC, 4);
+    state = radio->setSyncWord(SYNC_WORD_FLRC, 4);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_SYNC_WORD_FAILED, state);
 
-    state = radio.setCRC(CRC_LENGTH);
+    state = radio->setCRC(CRC_LENGTH);
     if (state != RADIOLIB_ERR_NONE)
         return LR2021Error(LR2021_ERR_CRC_CONFIG_FAILED, state);
 
     _instance = this;
-    radio.setIrqAction(setFlag);
+    radio->setIrqAction(setFlag);
 
     setFIFO();
     setIRQ();
@@ -339,10 +341,10 @@ void LR2021FLRCDriver::clearFifoIrq(uint8_t rxFlags, uint8_t txFlags)
 // Might not be necessary
 void LR2021FLRCDriver::transmitCallSign()
 {
-    radio.variablePacketLengthMode();
-    radio.startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
+    radio->variablePacketLengthMode();
+    radio->startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
     delay(500);
-    radio.fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
+    radio->fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
 }
 
 void LR2021FLRCDriver::spiWrite(const uint8_t *cmd, size_t len)
