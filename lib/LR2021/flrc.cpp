@@ -1,9 +1,10 @@
-#include "radio.h"
+#include "flrc.h"
 
 /* DEPRECATED DO NOT USE */
 
 LR2021FLRCDriver::LR2021FLRCDriver()
-    : spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
+    : mySPI(HSPI),
+      spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE0),
       radio(new Module(LR2021_CS, LR2021_GPIO9, LR2021_NRST, LR2021_BUSY, SPI, spiSettings))
 {
 }
@@ -12,8 +13,10 @@ LR2021FLRCDriver *LR2021FLRCDriver::_instance = nullptr;
 
 LR2021Error LR2021FLRCDriver::init()
 {
-    pinMode(LR2021_CS, OUTPUT);
-    digitalWrite(LR2021_CS, HIGH);
+    if (!mySPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, LR2021_CS))
+    {
+        return LR2021Error(LR2021_ERR_SPI_INIT_FAILED, 0);
+    }
 
     radio.irqDioNum = IRQ_PIN;
 
@@ -51,9 +54,9 @@ LR2021Error LR2021FLRCDriver::init()
     }
 
     // NOTE HERE: I had to change the files lib/RadioLib/src/modules/LR2021/LR2021_config.cpp
-    // to modify the function to accept a uint16_t PAYLOAD_SIZE variable
+    // to modify the function to accept a uint16_t PAYLOAD_SIZE_FLRC variable
     // there was no change in preformance; however, once this fix was applied, which is confusing.
-    state = radio.fixedPacketLengthMode(PAYLOAD_SIZE);
+    state = radio.fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
     if (state != RADIOLIB_ERR_NONE) // usually this passes so no printing
         return LR2021Error(LR2021_ERR_PKT_LEN_FAILED, state);
 
@@ -339,27 +342,27 @@ void LR2021FLRCDriver::transmitCallSign()
     radio.variablePacketLengthMode();
     radio.startTransmit((uint8_t *)CALL_SIGN, strlen(CALL_SIGN));
     delay(500);
-    radio.fixedPacketLengthMode(PAYLOAD_SIZE);
+    radio.fixedPacketLengthMode(PAYLOAD_SIZE_FLRC);
 }
 
 void LR2021FLRCDriver::spiWrite(const uint8_t *cmd, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    SPI.beginTransaction(spiSettings);
+    mySPI.beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    SPI.transferBytes(cmd, nullptr, len);
+    mySPI.transferBytes(cmd, nullptr, len);
     digitalWrite(LR2021_CS, HIGH);
-    SPI.endTransaction();
+    mySPI.endTransaction();
 }
 
 void LR2021FLRCDriver::spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    SPI.beginTransaction(spiSettings);
+    mySPI.beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    SPI.transferBytes(txBuf, rxBuf, len);
+    mySPI.transferBytes(txBuf, rxBuf, len);
     digitalWrite(LR2021_CS, HIGH);
-    SPI.endTransaction();
+    mySPI.endTransaction();
 }

@@ -1,14 +1,12 @@
 #pragma once
 
-#ifndef LR2021_FLRC_DRIVER
-#define LR2021_FLRC_DRIVER
-
 #include <RadioLib.h>
 #include <Arduino.h>
 #include "../../src/pins.h"
 
-static const uint16_t PAYLOAD_SIZE = 511;
+static const uint16_t PAYLOAD_SIZE_FLRC = 511;
 static const uint8_t PAYLOAD_SIZE_FSK = RADIOLIB_LR2021_MAX_PACKET_LENGTH;
+
 #define SPI_SPEED 16000000
 
 static uint8_t SYNC_WORD_FLRC[] = {0x2D, 0x01, 0x4B, 0x1D};
@@ -102,136 +100,3 @@ struct LR2021Error
         }
     }
 };
-
-// Based off table 18-9
-typedef struct
-{
-    uint16_t packet_length_bytes; // pkt_len[15:0]
-    int16_t rssi_avg_in_dbm;      // -rssi_avg / 2 dBm (integer part)
-    int16_t rssi_sync_in_dbm;     // -rssi_sync / 2 dBm (integer part)
-    uint8_t rssi_avg_half_dbm;    // rssi_avg(0) — bit 2 of byte 6, adds 0.5 dBm
-    uint8_t rssi_sync_half_dbm;   // rssi_sync(0) — bit 0 of byte 6, adds 0.5 dBm
-    uint8_t syncword_index;       // sw_num[3:0] — bits [7:4] of byte 6
-} LR2021FlrcPktStatus;
-
-// Table 11 - 15
-
-struct LR2021FskPktStatus
-{
-    uint16_t pktlen;
-    float rssiAvg;  // dBm, e.g. -87.5
-    float rssiSync; // dBm, e.g. -56.5
-    uint8_t addrMatchBcast;
-    uint8_t addrMatchNode;
-    float lqi; // dB, 0.25 steps — >10 dB is good
-};
-
-class LR2021FSKDriver
-{
-private:
-    SPISettings spiSettings;
-
-    static LR2021FSKDriver *_instance;
-
-    /* Flags */
-    volatile bool radioEvent = false;
-    static void setFlag();
-
-    /* IRQ */
-    uint32_t readIRQ();
-
-    /* SPI */
-    void spiWrite(const uint8_t *cmd, size_t len);
-    void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
-
-    /* Other */
-    LR2021FskPktStatus getFskPacketStatus();
-
-public:
-    LR2021 radio;
-    LR2021Error setIRQ();
-    LR2021Error init();
-
-    LR2021FSKDriver();
-    LR2021Error transmit(uint8_t *data, uint8_t len);
-    LR2021Error transmitBurst(uint8_t **packets, int count, uint8_t len); // len should be fsk max size
-    LR2021Error receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus);
-
-    void transmitCallSign();
-};
-
-// BAD BAD BAD BAD ASFJLADSFJ;LASDJFKASDLFJKLAS DO NOT USE PLEASE
-class LR2021FLRCDriver
-{
-private:
-    SPISettings spiSettings;
-
-    static LR2021FLRCDriver *_instance;
-
-    /* Flags */
-    volatile bool radioEvent = false;
-    static void setFlag();
-
-    /* Tx stuff */
-    uint8_t *fifoRefillPtr;
-    uint16_t fifoRefillLen;
-
-    void txFIFOWriteChunkOne(uint8_t *data);
-    void txSet();
-    void txFIFOWriteChunkTwo();
-
-    /* Rx stuff */
-    uint16_t rxBytesRead; // running count of bytes drained mid-packet
-    bool rxFifoHighFired;
-
-    void rxSet();
-    void rxFIFODrainChunk(uint8_t *dst, uint16_t len);
-
-    uint32_t readIRQ();
-    void clearFifoIrq(uint8_t rxFlags, uint8_t txFlags);
-
-    /* SPI */
-    void spiWrite(const uint8_t *cmd, size_t len);
-    void spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len);
-
-public:
-    LR2021 radio;
-
-    LR2021FLRCDriver();
-    LR2021Error init();
-    LR2021Error setFIFO();
-    LR2021Error setIRQ();
-    LR2021Error transmit(uint8_t *data);
-    LR2021Error receive(uint8_t *data, uint16_t len, LR2021FlrcPktStatus *pkt_status = nullptr);
-
-    bool rxGetFLRCPcktStatus(LR2021FlrcPktStatus *pkt_status);
-
-    void transmitCallSign();
-};
-
-#endif
-
-/*
-How TX fifo works:
-511 bytes = maximum FLRC protocol payload, defined by the packet format (Section 18.2.1)
-256 bytes = physical FIFO depth
-
-1. We write 255 bytes into FIFO
-2. We setTX so we start transmitting and drain the fifo
-3. When fifo is < 128 bytes, we set the fifo low flag
-4. Start writing 256 bytes as fifo is being drained
-5. stop transmitting
-*/
-
-/*
-How RX fifo works:
-511 bytes = maximum FLRC protocol payload, defined by the packet format (Section 18.2.1)
-256 bytes = physical FIFO depth
-
-1. clear rx fifo, then setRX to arm continuous receive mode
-2. Radio fills FIFO as packet arrives
-3. When FIFO > 200 bytes, RxFifo high threshold IRQ fires
-4. Drain first 200 bytes mid-packet to prevent overflow
-5. RxDone IRQ fires when full packet is received
-6. We drain remaining 311 bytes
-*/

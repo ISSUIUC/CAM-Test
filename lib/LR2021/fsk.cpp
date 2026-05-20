@@ -1,4 +1,4 @@
-#include "radio.h"
+#include "fsk.h"
 
 LR2021FSKDriver *LR2021FSKDriver::_instance = nullptr;
 
@@ -8,8 +8,9 @@ LR2021FSKDriver::LR2021FSKDriver()
 {
 }
 
-LR2021Error LR2021FSKDriver::init()
+LR2021Error LR2021FSKDriver::init(SPIClass &spi)
 {
+
     pinMode(LR2021_CS, OUTPUT);
     digitalWrite(LR2021_CS, HIGH);
 
