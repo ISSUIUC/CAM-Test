@@ -22,7 +22,7 @@ LR2021Error LR2021FSKDriver::init(SPIClass &spi)
 
     radio->irqDioNum = IRQ_PIN;
 
-    Serial.print(F("Initializing ... "));
+    // Serial.print(F("Initializing ... "));
 
     // use 434 configureations for now.
     int state = 0;
