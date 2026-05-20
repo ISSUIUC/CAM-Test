@@ -5,7 +5,7 @@
 #include "USB.h"
 #include "USBCDC.h"
 
-#include "radio.h"
+#include "fsk.h"
 
 USBCDC USBSerial;
 #undef Serial
@@ -80,7 +80,7 @@ void setup()
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark FSK)"));
 #endif
 
-    LR2021Error result = driver.init();
+    LR2021Error result = driver.init(SPI);
     if (!result.ok())
     {
         Serial.print(F("[LR2021] Init failed at stage: "));
