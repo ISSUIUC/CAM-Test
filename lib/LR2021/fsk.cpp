@@ -10,6 +10,7 @@ LR2021FSKDriver::LR2021FSKDriver()
 
 LR2021Error LR2021FSKDriver::init(SPIClass &spi)
 {
+    _spi = &spi;
 
     pinMode(LR2021_CS, OUTPUT);
     digitalWrite(LR2021_CS, HIGH);
@@ -106,7 +107,7 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
         memcpy(&cmd[2], packets[i], len);
         // ignore busy lol and just push into fifo
         digitalWrite(LR2021_CS, LOW);
-        SPI.transferBytes(cmd, nullptr, len + 2);
+        _spi->transferBytes(cmd, nullptr, len + 2);
         digitalWrite(LR2021_CS, HIGH);
 
         // now we wait for radioEvents
@@ -243,22 +244,22 @@ void LR2021FSKDriver::spiWrite(const uint8_t *cmd, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    SPI.beginTransaction(spiSettings);
+    _spi->beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    SPI.transferBytes(cmd, nullptr, len);
+    _spi->transferBytes(cmd, nullptr, len);
     digitalWrite(LR2021_CS, HIGH);
-    SPI.endTransaction();
+    _spi->endTransaction();
 }
 
 void LR2021FSKDriver::spiTransfer(const uint8_t *txBuf, uint8_t *rxBuf, size_t len)
 {
     while (digitalRead(LR2021_BUSY))
         ;
-    SPI.beginTransaction(spiSettings);
+    _spi->beginTransaction(spiSettings);
     digitalWrite(LR2021_CS, LOW);
-    SPI.transferBytes(txBuf, rxBuf, len);
+    _spi->transferBytes(txBuf, rxBuf, len);
     digitalWrite(LR2021_CS, HIGH);
-    SPI.endTransaction();
+    _spi->endTransaction();
 }
 
 IRAM_ATTR void LR2021FSKDriver::setFlag()
