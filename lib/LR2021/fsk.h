@@ -1,3 +1,5 @@
+#pragma once
+
 #include <RadioLib.h>
 #include <Arduino.h>
 #include "radio.h"
