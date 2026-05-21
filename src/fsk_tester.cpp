@@ -49,7 +49,7 @@ void setup()
     Serial.println(F("Mode: EAGLE (Receiver - HelloWorld)"));
 #endif
 
-    LR2021Error result = driver.init();
+    LR2021Error result = driver.init(SPI);
     if (!result.ok())
     {
         Serial.print(F("[LR2021] Init failed at stage: "));
