@@ -5,7 +5,7 @@
 #include "USB.h"
 #include "USBCDC.h"
 
-#include "radio.h"
+#include "fsk.h"
 
 USBCDC USBSerial;
 #undef Serial
@@ -73,10 +73,6 @@ void setup()
     delay(500);
     Serial.println(F("Mode: CAM (Transmitter - Benchmark FSK)"));
 #elifdef IS_EAGLE
-    while (!Serial)
-    {
-        delay(100);
-    }
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark FSK)"));
 #endif
 
