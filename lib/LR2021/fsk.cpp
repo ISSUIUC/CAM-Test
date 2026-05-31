@@ -188,6 +188,85 @@ LR2021Error LR2021FSKDriver::receive(uint8_t *data, uint8_t len, LR2021FskPktSta
     }
 }
 
+LR2021Error LR2021FSKDriver::receiveOpen(
+    uint8_t len,
+    RxCallback cb,
+    void *userData,
+    unsigned long idleTimeoutUs)
+{
+    // Clear stale RX FIFO (opcode 0x01 0x1E)
+    uint8_t clearRxCmd[] = {0x01, 0x1E};
+    spiWrite(clearRxCmd, sizeof(clearRxCmd));
+
+    // Arm RX with continuous timeout — stays in RX until RxDone fires,
+    // then falls back to FS. We re-arm manually after each event.
+    uint8_t setRxCmd[] = {0x02, 0x0C, 0xFF, 0xFF, 0xFF};
+    spiWrite(setRxCmd, sizeof(setRxCmd));
+
+    radioEvent = false;
+
+    bool everReceived = false;
+    unsigned long lastEventUs = micros();
+
+    uint8_t rxPayload[PAYLOAD_SIZE_FSK];
+
+    while (true)
+    {
+        unsigned long now = micros();
+
+        if ((now - lastEventUs) > idleTimeoutUs)
+        {
+            if (!everReceived)
+                return LR2021Error{LR2021_ERR_RX_TIMEOUT, 0};
+            return LR2021Error{LR2021_ERR_NONE, 0};
+        }
+
+        if (!radioEvent)
+        {
+            taskYIELD();
+            continue;
+        }
+        radioEvent = false;
+
+        lastEventUs = micros();
+
+        uint32_t irq = readIRQ(); // reads AND clears IRQ status on chip
+
+        if (!(irq & (1UL << 18))) // not RxDone — spurious IRQ, ignore
+        {
+            spiWrite(setRxCmd, sizeof(setRxCmd));
+            continue;
+        }
+
+        bool crcError = (irq & (1UL << 22)) != 0;
+
+        uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
+        uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
+        txBuf[0] = 0x00; // ReadRadioRxFifo opcode
+        txBuf[1] = 0x01;
+        memset(&txBuf[2], 0x00, len);
+        spiTransfer(txBuf, rxBuf, len + 2);
+
+        LR2021FskPktStatus status = getFskPacketStatus();
+
+        if (!crcError)
+        {
+            memcpy(rxPayload, &rxBuf[2], len);
+            if (cb)
+                cb(rxPayload, len, status, false, userData);
+        }
+        else
+        {
+            if (cb)
+                cb(nullptr, len, status, true, userData);
+        }
+
+        everReceived = true;
+
+        spiWrite(setRxCmd, sizeof(setRxCmd));
+    }
+}
+
 // SetDioIrqConfig: opcode 0x01 0x15  (DS Table 6-46 / §5.7)
 // TxDone   = bit 19
 // RxDone   = bit 18
