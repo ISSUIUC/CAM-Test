@@ -194,12 +194,9 @@ LR2021Error LR2021FSKDriver::receiveOpen(
     void *userData,
     unsigned long idleTimeoutUs)
 {
-    // Clear stale RX FIFO (opcode 0x01 0x1E)
     uint8_t clearRxCmd[] = {0x01, 0x1E};
     spiWrite(clearRxCmd, sizeof(clearRxCmd));
 
-    // Arm RX with continuous timeout — stays in RX until RxDone fires,
-    // then falls back to FS. We re-arm manually after each event.
     uint8_t setRxCmd[] = {0x02, 0x0C, 0xFF, 0xFF, 0xFF};
     spiWrite(setRxCmd, sizeof(setRxCmd));
 
@@ -249,20 +246,10 @@ LR2021Error LR2021FSKDriver::receiveOpen(
 
             LR2021FskPktStatus status = getFskPacketStatus();
 
-            if (!crcError)
-            {
-                if (cb)
-                    cb(rxPayload, len, status, false, userData);
-            }
-            else
-            {
-                if (cb)
-                    cb(nullptr, len, status, true, userData);
-            }
-
             everReceived = true;
 
-            spiWrite(setRxCmd, sizeof(setRxCmd));
+            if (cb)
+                cb(!crcError ? rxPayload : nullptr, len, status, crcError, userData);
         }
     }
 }
