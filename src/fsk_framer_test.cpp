@@ -48,6 +48,18 @@ static void build_yuv422_frame(uint8_t *buf)
 
 static FskReassemblyState rxState;
 
+static void blink_task(void *pvParameters)
+{
+    (void)pvParameters;
+    while (true)
+    {
+        digitalWrite(LED_RED, HIGH);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        digitalWrite(LED_RED, LOW);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 static void chunk_output(uint8_t *buf, size_t len)
 {
     uint32_t off = 0;
@@ -126,6 +138,16 @@ void setup()
     Serial.println(F("[EAGLE] Reassembler init OK"));
     Serial.println(F("[EAGLE] Listening for fragments..."));
     digitalWrite(LED_BLUE, HIGH);
+
+    xTaskCreatePinnedToCore(
+        blink_task, // task function
+        "blink",    // name
+        1024,       // stack (minimal — just toggling a pin)
+        nullptr,    // param
+        1,          // priority
+        nullptr,    // handle (don't need it)
+        0           // Core 0
+    );
 #endif
 
 #ifdef IS_CAM
@@ -242,10 +264,6 @@ void loop()
         rxState.stat_crc_drop++;
         if (rxStarted)
             lastRxUs = now;
-
-        digitalWrite(LED_RED, HIGH);
-        delay(10);
-        digitalWrite(LED_RED, LOW);
         return;
     }
 
@@ -292,6 +310,7 @@ finish:
     fsk_reassembler_check_timeout(&rxState, (uint32_t)millis());
 
     digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_ORANGE, LOW);
     digitalWrite(LED_BLUE, HIGH);
 
     {
@@ -331,7 +350,9 @@ finish:
         chunk_output(rxState.data_buf, frameSize);
 
         Serial.println(F("[EAGLE] Stream complete."));
-        digitalWrite(LED_GREEN, HIGH);
+
+        digitalWrite(LED_BLUE, LOW);
     }
+
 #endif // IS_EAGLE
 }
