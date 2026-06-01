@@ -120,7 +120,6 @@ void setup()
     }
 
 #ifdef IS_CAM
-    delay(500);
     Serial.println(F("Mode: CAM (Transmitter - Benchmark FSK)"));
 #elifdef IS_EAGLE
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark FSK)"));
@@ -250,8 +249,10 @@ void setup()
         packetPtrs[i] = packetPool[i];
     }
 
-    Serial.println(F("[CAM] Starting benchmark in 2 seconds..."));
-    delay(2000);
+    digitalWrite(LED_GREEN, HIGH);
+
+    // Serial.println(F("[CAM] Starting benchmark in 2 seconds..."));
+    // delay(2000);
 
     Serial.print(F("[CAM] Sending "));
     Serial.print(BENCHMARK_PACKET_COUNT);
