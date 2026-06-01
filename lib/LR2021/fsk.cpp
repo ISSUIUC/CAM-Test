@@ -109,20 +109,9 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
 
     for (int i = 1; i < count; i++)
     {
-
-        memcpy(&cmd[2], packets[i], len);
-
-        // ignore busy lol and just push into fifo
-        _spi->beginTransaction(spiSettings);
-        digitalWrite(LR2021_CS, LOW);
-        _spi->transferBytes(cmd, nullptr, len + 2);
-        digitalWrite(LR2021_CS, HIGH);
-        _spi->endTransaction();
-
-        // now we wait for radioEvents
         radioEvent = false;
         while (!radioEvent)
-            ; // lowkey can do like pass/yield but keep it blcoking for now
+            taskYIELD(); // will change speeds?
 
         // there has been a radio event, lets load the next one:
         radioEvent = false;
@@ -131,8 +120,8 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
         if (!(irq & (1UL << 19)))
             return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
 
-        // memcpy(&cmd[2], packets[i], len);
-        // spiWrite(cmd, len + 2);
+        memcpy(&cmd[2], packets[i], len);
+        spiWrite(cmd, len + 2);
         spiWrite(setTxCmd, sizeof(setTxCmd));
     }
 
