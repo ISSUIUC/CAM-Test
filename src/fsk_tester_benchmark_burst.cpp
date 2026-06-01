@@ -142,34 +142,34 @@ void setup()
 
 #ifdef IS_EAGLE
 
-    Serial.println(F("[EAGLE] Waiting for first packet..."));
+    // Serial.println(F("[EAGLE] Waiting for first packet..."));
     digitalWrite(LED_BLUE, HIGH);
 
-    // Wait for the first packet with a long timeout
-    LR2021Error firstPktResult = driver.receiveOpen(
-        PAYLOAD_SIZE_FSK,
-        onRxPacket,
-        &ctx,
-        10000UL * 1000UL // 10 second timeout to wait for first packet
-    );
+    // // Wait for the first packet with a long timeout
+    // LR2021Error firstPktResult = driver.receiveOpen(
+    //     PAYLOAD_SIZE_FSK,
+    //     onRxPacket,
+    //     &ctx,
+    //     10000UL * 1000UL // 10 second timeout to wait for first packet
+    // );
 
-    if (!ctx.packetsRx && !ctx.rxErrors)
-    {
-        Serial.println(F("[EAGLE] No packet received within timeout. Aborting."));
-        while (true)
-        {
-            delay(10);
-        }
-    }
+    // if (!ctx.packetsRx && !ctx.rxErrors)
+    // {
+    //     Serial.println(F("[EAGLE] No packet received within timeout. Aborting."));
+    //     while (true)
+    //     {
+    //         delay(10);
+    //     }
+    // }
 
-    Serial.println(F("[EAGLE] First packet received! Starting benchmark..."));
+    // Serial.println(F("[EAGLE] First packet received! Starting benchmark..."));
 
-    // Reset context for the actual benchmark
-    ctx.logCount = 0;
-    ctx.packetsRx = 0;
-    ctx.rxErrors = 0;
-    ctx.totalBytesRx = 0;
-    ctx.firstPacket = true;
+    // // Reset context for the actual benchmark
+    // ctx.logCount = 0;
+    // ctx.packetsRx = 0;
+    // ctx.rxErrors = 0;
+    // ctx.totalBytesRx = 0;
+    // ctx.firstPacket = true;
 
     unsigned long t0 = micros();
 
