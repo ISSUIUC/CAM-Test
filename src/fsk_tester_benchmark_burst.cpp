@@ -123,6 +123,8 @@ void setup()
     Serial.println(F("Mode: CAM (Transmitter - Benchmark FSK)"));
 #elifdef IS_EAGLE
     Serial.println(F("Mode: EAGLE (Receiver - Benchmark FSK)"));
+
+    digitalWrite(LED_BLUE, HIGH);
 #endif
 
     LR2021Error result = driver.init(SPI);
@@ -138,106 +140,6 @@ void setup()
         }
     }
     Serial.println(F("[LR2021] Init OK"));
-
-#ifdef IS_EAGLE
-
-    // Serial.println(F("[EAGLE] Waiting for first packet..."));
-    digitalWrite(LED_BLUE, HIGH);
-
-    // // Wait for the first packet with a long timeout
-    // LR2021Error firstPktResult = driver.receiveOpen(
-    //     PAYLOAD_SIZE_FSK,
-    //     onRxPacket,
-    //     &ctx,
-    //     10000UL * 1000UL // 10 second timeout to wait for first packet
-    // );
-
-    // if (!ctx.packetsRx && !ctx.rxErrors)
-    // {
-    //     Serial.println(F("[EAGLE] No packet received within timeout. Aborting."));
-    //     while (true)
-    //     {
-    //         delay(10);
-    //     }
-    // }
-
-    // Serial.println(F("[EAGLE] First packet received! Starting benchmark..."));
-
-    // // Reset context for the actual benchmark
-    // ctx.logCount = 0;
-    // ctx.packetsRx = 0;
-    // ctx.rxErrors = 0;
-    // ctx.totalBytesRx = 0;
-    // ctx.firstPacket = true;
-
-    unsigned long t0 = micros();
-
-    // Now start the actual benchmark receive
-    LR2021Error rxResult = driver.receiveOpen(
-        PAYLOAD_SIZE_FSK,
-        onRxPacket,
-        &ctx,
-        500UL * 1000UL // 500 ms of silence = burst is done
-    );
-
-    unsigned long elapsed = micros() - t0;
-
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_BLUE, HIGH);
-
-    float elapsedSec = elapsed / (1000.0f * 1000.0f);
-    float throughput = (ctx.totalBytesRx * 8.0f) / elapsedSec / 1000.0f;
-    float packetLoss = (ctx.packetsRx + ctx.rxErrors) > 0
-                           ? 100.0f * ctx.rxErrors / (float)(ctx.packetsRx + ctx.rxErrors)
-                           : 0.0f;
-
-    if (rxResult.driverCode == LR2021_ERR_RX_TIMEOUT)
-        Serial.println(F("[EAGLE] WARNING: cold timeout — nothing received"));
-
-    Serial.println(F("\n========= EAGLE BENCHMARK RESULTS ========="));
-    Serial.print(F(" Packets received:  "));
-    Serial.println(ctx.packetsRx);
-    Serial.print(F(" RX errors (CRC):   "));
-    Serial.println(ctx.rxErrors);
-    Serial.print(F(" Packet loss:       "));
-    Serial.print(packetLoss, 1);
-    Serial.println(F(" %"));
-    Serial.print(F(" Total RX bytes:    "));
-    Serial.println(ctx.totalBytesRx);
-    Serial.print(F(" Elapsed time:      "));
-    Serial.print(elapsedSec, 3);
-    Serial.println(F(" s"));
-    Serial.print(F(" Throughput:        "));
-    Serial.print(throughput, 2);
-    Serial.println(F(" kbps"));
-    Serial.println(F("==========================================\n"));
-
-    Serial.println(F("\n--- Per-packet log ---"));
-    Serial.println(F(" SEQ\t\tRX_us\t\tRSSI_avg\tRSSI_sync\tLQI\tLength"));
-
-    for (int i = 0; i < ctx.logCount; i++)
-    {
-        char buf[128];
-        int n;
-        if (ctx.log[i].crcError)
-            n = snprintf(buf, sizeof(buf),
-                         " [CRC]\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
-                         ctx.log[i].rxUs,
-                         ctx.log[i].rssiAvg, ctx.log[i].rssiSync,
-                         ctx.log[i].lqi, ctx.log[i].length);
-        else
-            n = snprintf(buf, sizeof(buf),
-                         " %d\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
-                         ctx.log[i].seqNum, ctx.log[i].rxUs,
-                         ctx.log[i].rssiAvg, ctx.log[i].rssiSync,
-                         ctx.log[i].lqi, ctx.log[i].length);
-        if (n > 0)
-        {
-            Serial.write(buf, n);
-            Serial.flush();
-        }
-    }
-#endif
 
 #ifdef IS_CAM
     for (int i = 0; i < BENCHMARK_PACKET_COUNT; i++)
@@ -307,5 +209,93 @@ void setup()
 
 void loop()
 {
-    delay(100);
+
+#ifdef IS_EAGLE
+    digitalWrite(LED_ORANGE, HIGH);
+
+    // Reset context for the actual benchmark
+    ctx.logCount = 0;
+    ctx.packetsRx = 0;
+    ctx.rxErrors = 0;
+    ctx.totalBytesRx = 0;
+    ctx.firstPacket = true;
+
+    unsigned long t0 = micros();
+
+    // Now start the actual benchmark receive
+    LR2021Error rxResult = driver.receiveOpen(
+        PAYLOAD_SIZE_FSK,
+        onRxPacket,
+        &ctx,
+        500UL * 1000UL // 500 ms of silence = burst is done
+    );
+
+    unsigned long elapsed = micros() - t0;
+
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_BLUE, HIGH);
+
+    // if (rxResult.driverCode == LR2021_ERR_RX_TIMEOUT)
+    //     Serial.println(F("[EAGLE] WARNING: cold timeout — nothing received"));
+    // else
+    // {
+    if (ctx.packetsRx > 0)
+    {
+        float elapsedSec = elapsed / (1000.0f * 1000.0f);
+        float throughput = (ctx.totalBytesRx * 8.0f) / elapsedSec / 1000.0f;
+        float packetLoss = (ctx.packetsRx + ctx.rxErrors) > 0
+                               ? 100.0f * ctx.rxErrors / (float)(ctx.packetsRx + ctx.rxErrors)
+                               : 0.0f;
+
+        Serial.println(F("\n========= EAGLE BENCHMARK RESULTS ========="));
+        Serial.print(F(" Packets received:  "));
+        Serial.println(ctx.packetsRx);
+        Serial.print(F(" RX errors (CRC):   "));
+        Serial.println(ctx.rxErrors);
+        Serial.print(F(" Packet loss:       "));
+        Serial.print(packetLoss, 1);
+        Serial.println(F(" %"));
+        Serial.print(F(" Total RX bytes:    "));
+        Serial.println(ctx.totalBytesRx);
+        Serial.print(F(" Elapsed time:      "));
+        Serial.print(elapsedSec, 3);
+        Serial.println(F(" s"));
+        Serial.print(F(" Throughput:        "));
+        Serial.print(throughput, 2);
+        Serial.println(F(" kbps"));
+        Serial.println(F("==========================================\n"));
+
+        Serial.println(F("\n--- Per-packet log ---"));
+        Serial.println(F(" SEQ\t\tRX_us\t\tRSSI_avg\tRSSI_sync\tLQI\tLength"));
+
+        for (int i = 0; i < ctx.logCount; i++)
+        {
+            char buf[128];
+            int n;
+            if (ctx.log[i].crcError)
+                n = snprintf(buf, sizeof(buf),
+                             " [CRC]\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
+                             ctx.log[i].rxUs,
+                             ctx.log[i].rssiAvg, ctx.log[i].rssiSync,
+                             ctx.log[i].lqi, ctx.log[i].length);
+            else
+                n = snprintf(buf, sizeof(buf),
+                             " %d\t\t%lu\t\t%.1f\t\t%.1f\t\t%.2f\t%d\n",
+                             ctx.log[i].seqNum, ctx.log[i].rxUs,
+                             ctx.log[i].rssiAvg, ctx.log[i].rssiSync,
+                             ctx.log[i].lqi, ctx.log[i].length);
+            if (n > 0)
+            {
+                Serial.write(buf, n);
+                Serial.flush();
+            }
+        }
+    }
+    else
+    {
+        Serial.println("[EAGLE] Rx is 0, not printing anything... ");
+    }
+
+    digitalWrite(LED_ORANGE, LOW);
+#endif
 }
