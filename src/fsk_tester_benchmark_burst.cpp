@@ -280,6 +280,7 @@ void setup()
     float elapsedSec = elapsed / (1000.0f * 1000.0f);
     float throughput = (totalBytes * 8.0f) / elapsedSec / 1000.0f;
 
+    digitalWrite(LED_GREEN, LOW);
     digitalWrite(LED_ORANGE, HIGH);
 
     Serial.println(F("\n========= CAM BENCHMARK RESULTS ========="));
