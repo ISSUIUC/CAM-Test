@@ -252,7 +252,7 @@ def save_frame(frame_count: int, bgr: np.ndarray):
 
 
 def main():
-    global _log_file
+    global _log_file, IMAGE_SIZE, YUV_WIDTH, YUV_HEIGHT
 
     parser = argparse.ArgumentParser(
         description="Receive YUV422 frame stream from EAGLE over serial"
@@ -303,8 +303,7 @@ def main():
     frame_queue = queue.Queue(maxsize=QUEUE_DEPTH)
     stop_event = threading.Event()
 
-    # Patch IMAGE_SIZE for worker if overridden
-    global IMAGE_SIZE, YUV_WIDTH, YUV_HEIGHT
+    # Update module-level constants with CLI args
     IMAGE_SIZE = image_size
     YUV_WIDTH = args.width
     YUV_HEIGHT = args.height
