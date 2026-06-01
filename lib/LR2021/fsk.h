@@ -50,15 +50,6 @@ public:
     LR2021Error transmitBurst(uint8_t **packets, int count, uint8_t len); // len should be fsk max size
     LR2021Error receive(uint8_t *data, uint8_t len, LR2021FskPktStatus *outStatus);
 
-    using RxCallback = void (*)(const uint8_t *buf, uint8_t len,
-                                const LR2021FskPktStatus &status,
-                                bool crcError, void *userData);
-
-    LR2021Error receiveOpen(uint8_t len,
-                            RxCallback cb,
-                            void *userData,
-                            unsigned long idleTimeoutUs = 500UL * 1000UL);
-
     void transmitCallSign();
 };
 
