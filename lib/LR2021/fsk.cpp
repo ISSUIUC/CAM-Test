@@ -117,9 +117,10 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
                 return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
         }
 
-        uint32_t irq = readIRQ();
-        if (irq & (1UL << 19))
-            return LR2021Error{LR2021_ERR_NONE, 0};
+        // uint32_t irq = readIRQ();
+        // if (irq & (1UL << 19))
+        //     return LR2021Error{LR2021_ERR_NONE, 0};
+        spiWrite(clearIrqCmd, sizeof(clearIrqCmd));
     }
 
     return LR2021Error{LR2021_ERR_NONE, 0};
