@@ -96,6 +96,8 @@ static void onRxPacket(const uint8_t *buf,
     }
 }
 
+static EagleRxCtx ctx;
+
 #endif
 
 void setup()
@@ -139,7 +141,6 @@ void setup()
     Serial.println(F("[LR2021] Init OK"));
 
 #ifdef IS_EAGLE
-    EagleRxCtx ctx;
 
     Serial.println(F("[EAGLE] Waiting for first packet..."));
     digitalWrite(LED_BLUE, HIGH);
