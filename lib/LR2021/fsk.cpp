@@ -230,40 +230,40 @@ LR2021Error LR2021FSKDriver::receiveOpen(
 
         lastEventUs = micros();
 
-        uint32_t irq = readIRQ(); // reads AND clears IRQ status on chip
-
-        if (!(irq & (1UL << 18))) // not RxDone — spurious IRQ, ignore
+        uint32_t irq = readIRQ();
+        if (irq & (1UL << 18)) // RxDone bit 18
         {
+            bool crcError = (irq & (1UL << 22)) != 0;
+
+            uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
+            uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
+            txBuf[0] = 0x00; // ReadRadioRxFifo opcode
+            txBuf[1] = 0x01;
+            memset(&txBuf[2], 0x00, len);
+            spiTransfer(txBuf, rxBuf, len + 2);
+
             spiWrite(setRxCmd, sizeof(setRxCmd));
-            continue;
+
+            if (!crcError)
+                memcpy(rxPayload, &rxBuf[2], len);
+
+            LR2021FskPktStatus status = getFskPacketStatus();
+
+            if (!crcError)
+            {
+                if (cb)
+                    cb(rxPayload, len, status, false, userData);
+            }
+            else
+            {
+                if (cb)
+                    cb(nullptr, len, status, true, userData);
+            }
+
+            everReceived = true;
+
+            spiWrite(setRxCmd, sizeof(setRxCmd));
         }
-
-        bool crcError = (irq & (1UL << 22)) != 0;
-
-        uint8_t txBuf[PAYLOAD_SIZE_FSK + 2];
-        uint8_t rxBuf[PAYLOAD_SIZE_FSK + 2];
-        txBuf[0] = 0x00; // ReadRadioRxFifo opcode
-        txBuf[1] = 0x01;
-        memset(&txBuf[2], 0x00, len);
-        spiTransfer(txBuf, rxBuf, len + 2);
-
-        LR2021FskPktStatus status = getFskPacketStatus();
-
-        if (!crcError)
-        {
-            memcpy(rxPayload, &rxBuf[2], len);
-            if (cb)
-                cb(rxPayload, len, status, false, userData);
-        }
-        else
-        {
-            if (cb)
-                cb(nullptr, len, status, true, userData);
-        }
-
-        everReceived = true;
-
-        spiWrite(setRxCmd, sizeof(setRxCmd));
     }
 }
 
