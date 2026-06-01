@@ -48,27 +48,71 @@ static void build_yuv422_frame(uint8_t *buf)
 
 static FskReassemblyState rxState;
 
+// static void chunk_output(uint8_t *buf, size_t len)
+// {
+//     uint32_t off = 0;
+//     uint8_t tmp[512];
+
+//     while (off < len)
+//     {
+//         uint32_t chunk = len - off;
+//         if (chunk > 512)
+//             chunk = 512;
+
+//         memcpy(tmp, buf + off, chunk);
+
+//         size_t wrote = Serial.write(tmp, chunk);
+//         Serial.flush();
+
+//         if (wrote > 0)
+//             off += wrote;
+//         else
+//             vTaskDelay(pdMS_TO_TICKS(1));
+//     }
+// }
+
 static void chunk_output(uint8_t *buf, size_t len)
 {
+    static uint8_t tmp[256];
+
     uint32_t off = 0;
-    uint8_t tmp[512];
+    uint32_t retries = 0;
+    const uint32_t MAX_RETRIES = 2000;
 
     while (off < len)
     {
+        if (!Serial)
+        {
+            Serial.println(F("[EAGLE] USB disconnected mid-stream, aborting."));
+            return;
+        }
+
         uint32_t chunk = len - off;
-        if (chunk > 512)
-            chunk = 512;
+        if (chunk > sizeof(tmp))
+            chunk = sizeof(tmp);
 
         memcpy(tmp, buf + off, chunk);
 
         size_t wrote = Serial.write(tmp, chunk);
-        Serial.flush();
 
         if (wrote > 0)
+        {
             off += wrote;
+            retries = 0;
+        }
         else
+        {
+            retries++;
+            if (retries >= MAX_RETRIES)
+            {
+                Serial.println(F("[EAGLE] Stream stalled, aborting."));
+                return;
+            }
             vTaskDelay(pdMS_TO_TICKS(1));
+        }
     }
+
+    Serial.flush(); // single flush after all bytes are queued
 }
 
 // RX state — mirrors benchmark pattern
@@ -327,6 +371,7 @@ finish:
 
         Serial.println(F("[EAGLE] Streaming reassembled frame over serial..."));
         Serial.flush();
+        delay(50);
 
         chunk_output(rxState.data_buf, frameSize);
 
