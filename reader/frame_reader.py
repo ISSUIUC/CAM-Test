@@ -153,14 +153,26 @@ def serial_worker(
             if SENTINEL_START not in line:
                 continue
 
+            # Drain anything that arrived in the same buffer as the sentinel
+            # (binary 0x0A bytes would corrupt a readline-based read)
+            ser.reset_input_buffer()
+            time.sleep(0.05)
+
             # ── RECEIVING: slurp exactly IMAGE_SIZE bytes ──────────── #
             log(f"Frame incoming — expecting {IMAGE_SIZE} bytes …")
             t_start = time.perf_counter()
+            t_deadline = t_start + 10.0  # give up after 10 s
 
             buffer = bytearray()
             remaining = IMAGE_SIZE
 
             while remaining > 0 and not stop_event.is_set():
+                if time.perf_counter() > t_deadline:
+                    log(
+                        f"ERROR: frame receive timed out ({len(buffer)}/{IMAGE_SIZE} bytes received)"
+                    )
+                    buffer.clear()
+                    break
                 chunk = ser.read(min(remaining, READ_CHUNK))
                 if not chunk:
                     continue
@@ -283,11 +295,7 @@ def main():
     # Recompute image size from CLI args (in case user overrides dimensions)
     image_size = args.width * args.height * 2
     if image_size != IMAGE_SIZE:
-        import builtins
-
-        # Patch the module-level constant so the worker picks it up
-        builtins.__dict__["_IMAGE_SIZE_OVERRIDE"] = image_size
-        log(f"Image size overridden to {image_size} bytes ({args.width}×{args.height})")
+        log(f"Image size overridden to {image_size} bytes ({args.width}x{args.height})")
 
     _log_file = open(LOG_FILE, "a", encoding="utf-8")
     log("=" * 60)
