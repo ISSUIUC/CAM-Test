@@ -101,6 +101,7 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
 
     static uint8_t cmd[PAYLOAD_SIZE_FSK + 2] = {0x00, 0x02};
     uint8_t setTxCmd[] = {0x02, 0x0D, 0x00, 0x00, 0x00, 0x00};
+    uint8_t clearIrqCmd[] = {0x01, 0x16, 0xFF, 0xFF, 0xFF, 0xFF};
 
     for (int i = 0; i < count; i++)
     {
@@ -115,11 +116,7 @@ LR2021Error LR2021FSKDriver::transmitBurst(uint8_t **packets, int count, uint8_t
             if (micros() - start > 3000 * 1000)
                 return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
         }
-
-        radioEvent = false;
-        // uint32_t irq = readIRQ();
-        // if (!(irq & (1UL << 19)))
-        //     return LR2021Error{LR2021_ERR_TX_TIMEOUT, 0};
+        spiWrite(clearIrqCmd, sizeof(clearIrqCmd));
     }
 
     return LR2021Error{LR2021_ERR_NONE, 0};
