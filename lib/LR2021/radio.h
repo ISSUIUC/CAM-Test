@@ -23,8 +23,8 @@ static const int IRQ_PIN = 9;
 #define BITRATE_FLRC 2600 // Kbps -> reference table 18-1 on datahseet
 
 #define BITRATE_FSK_434 1000
-#define RX_BANDWIDTH_FSK_434 2222.0 // khz Table 11-2
-#define FREQ_DEV_FSK_434 250.0      // khz
+#define RX_BANDWIDTH_FSK_434 2222.22 // khz Table 11-2
+#define FREQ_DEV_FSK_434 250.0       // khz
 
 #define BITRATE_FSK_915 2000
 #define RX_BANDWIDTH_FSK_915 1111.10 // khz Table 11-2
