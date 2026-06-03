@@ -80,8 +80,6 @@ static void chunk_output(uint8_t *buf, size_t len)
             off += wrote;
         else
             vTaskDelay(pdMS_TO_TICKS(1));
-
-        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
