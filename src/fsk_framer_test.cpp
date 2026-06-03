@@ -98,7 +98,12 @@ void setup()
     setCpuFrequencyMhz(240);
 
     USB.begin();
+#ifdef IS_CAM
     Serial.begin(115200);
+#endif
+#ifdef IS_EAGLE
+    Serial.begin(230400);
+#endif
     SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
 
     pinMode(LED_RED, OUTPUT);
