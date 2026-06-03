@@ -160,11 +160,6 @@ def serial_worker(
             if SENTINEL_START not in line:
                 continue
 
-            # Drain anything that arrived in the same buffer as the sentinel
-            # (binary 0x0A bytes would corrupt a readline-based read)
-            ser.reset_input_buffer()
-            time.sleep(0.05)
-
             # ── RECEIVING: slurp exactly IMAGE_SIZE bytes ──────────── #
             log(f"Frame incoming — expecting {IMAGE_SIZE} bytes …")
             t_start = time.perf_counter()
