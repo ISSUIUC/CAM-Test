@@ -14,8 +14,8 @@ USBCDC USBSerial;
 #define Serial USBSerial
 
 #define YUV_WIDTH 360u
-#define YUV_HEIGHT 240u
-#define IMAGE_SIZE (YUV_WIDTH * YUV_HEIGHT * 2u) // 172 800 bytes
+#define YUV_HEIGHT 120u
+#define IMAGE_SIZE (YUV_WIDTH * YUV_HEIGHT * 2u)
 
 static LR2021FSKDriver driver;
 
