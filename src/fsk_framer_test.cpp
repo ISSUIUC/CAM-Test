@@ -104,7 +104,7 @@ void setup()
     Serial.begin(115200);
 #endif
 #ifdef IS_EAGLE
-    Serial.begin(230400);
+    Serial.begin(115200);
 #endif
     SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
 
