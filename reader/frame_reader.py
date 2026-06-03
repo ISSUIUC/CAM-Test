@@ -14,6 +14,13 @@ Eagle serial protocol
 Steps 1 and 3 are UTF-8 text lines terminated with \\n.
 Step 2 is a raw binary blob — no length prefix, no framing markers.
 The host knows the exact size because it is fixed (172 800 bytes).
+
+HOW TO RUN VERY IMPORTANT!!!
+
+install uv
+
+uv run frame_reader.py
+
 """
 
 import argparse
